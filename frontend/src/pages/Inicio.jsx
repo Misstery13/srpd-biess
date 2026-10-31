@@ -1,6 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
+import { useAuth } from '../context/auth.js'
 
 export default function Inicio() {
+  if (useAuth().autenticado) return <Navigate to="/postulacion" replace />
   return (
     <section className="mx-auto max-w-md rounded-lg bg-white p-6 shadow-sm">
       <h1 className="mb-6 text-xl font-semibold">Bienvenido/a</h1>

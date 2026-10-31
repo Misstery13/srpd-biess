@@ -31,11 +31,25 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+// E3: el AuthProvider registra qué hacer cuando un 401 indica que la sesión ya no es válida
+let alNoAutorizado = null
+export function onNoAutorizado(fn) {
+  alNoAutorizado = fn
+  return () => {
+    alNoAutorizado = null
+  }
+}
+
 // Todas las fallas llegan como Error con un mensaje listo para mostrar y el status HTTP
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     const status = err.response?.status
+    // En /auth/* un 401 es "datos incorrectos", no sesión vencida
+    if (status === 401 && getToken() && !err.config?.url?.startsWith('/auth/')) {
+      setToken(null)
+      alNoAutorizado?.()
+    }
     const mensaje =
       err.response?.data?.error ||
       (status ? 'Ocurrió un error, inténtelo nuevamente.' : 'No se pudo conectar con el servidor.')
