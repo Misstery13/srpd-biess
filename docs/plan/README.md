@@ -4,9 +4,13 @@ Entrega: **martes 3 de noviembre de 2026**. Alcance: **EF-11** y **EF-12** (EF-1
 
 Cada fase termina en un **hito verificable de punta a punta** (BD → API → pantalla). Dentro de cada fase el trabajo se divide en tres pistas que avanzan en paralelo:
 
-- **D — Datos**: PostgreSQL, Redis, `internal/repository`, `internal/cache`
-- **B — Backend**: `cmd/api`, `internal/config`, `internal/handler`, `internal/service`
-- **F — Frontend**: `frontend/`
+| Pista | Responsable | Alcance |
+|-------|-------------|---------|
+| **D — Datos** | Gino Bermúdez (@ginobermudez76) | PostgreSQL, Redis, `internal/repository`, `internal/cache` |
+| **B — Backend** | Said (@SaidJuniorProgrammer) | `cmd/api`, `internal/config`, `internal/handler`, `internal/service` (framework: **Gin**) |
+| **F — Frontend** | Diana Melena (@Misstery13) | `frontend/` |
+
+Las tareas de cada fase están como **issues** en GitHub, agrupadas por milestone (Fase 1, Fase 2…).
 
 | Fase | Fecha | Hito (se cumple cuando…) |
 |------|-------|--------------------------|

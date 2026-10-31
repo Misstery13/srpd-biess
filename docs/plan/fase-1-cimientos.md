@@ -10,7 +10,7 @@
 
 ## B — Backend
 - [ ] `internal/config`: leer `.env`.
-- [ ] Fiber/Gin en `main.go` con **inyección de dependencias**: `repo := ...; svc := service.New(repo); h := handler.New(svc)`.
+- [ ] Gin en `main.go` con **inyección de dependencias**: `repo := ...; svc := service.New(repo); h := handler.New(svc)`.
 - [ ] Middleware de errores con formato `{"error": ...}`.
 - [ ] Handlers de los 3 endpoints de catálogos.
 

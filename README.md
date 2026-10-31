@@ -12,7 +12,7 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 | Capa | Tecnología |
 |------|------------|
 | Frontend | React + Vite + Tailwind CSS (SPA) |
-| Backend | Go (Fiber/Gin) — Handler → Service → Repository con inyección de dependencias |
+| Backend | Go + Gin — Handler → Service → Repository con inyección de dependencias |
 | Base de datos | PostgreSQL 16 |
 | Caché / rate limiting | Redis 7 |
 
