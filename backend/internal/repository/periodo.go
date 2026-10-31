@@ -2,8 +2,10 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -40,7 +42,7 @@ func (r *periodoRepository) ObtenerPeriodoActivo(ctx context.Context) (*PeriodoR
 	var row PeriodoRow
 	err := r.pool.QueryRow(ctx, query).Scan(&row.Inicio, &row.Fin)
 	if err != nil {
-		if err.Error() == "no rows in result set" {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

@@ -17,6 +17,7 @@ type PostulanteRepository interface {
 	Crear(ctx context.Context, p *model.Postulante) error
 	ActualizarPassword(ctx context.Context, cedula, passwordHash string) error
 	BuscarRolPorCodigo(ctx context.Context, codigo string) (*model.Rol, error)
+	BuscarRolPorID(ctx context.Context, id int) (*model.Rol, error)
 }
 
 type pgxPostulanteRepository struct {
@@ -120,6 +121,23 @@ func (r *pgxPostulanteRepository) BuscarRolPorCodigo(ctx context.Context, codigo
 			return nil, nil
 		}
 		return nil, fmt.Errorf("error al buscar rol: %w", err)
+	}
+	return &rol, nil
+}
+
+func (r *pgxPostulanteRepository) BuscarRolPorID(ctx context.Context, id int) (*model.Rol, error) {
+	query := `
+		SELECT id, codigo, nombre, deleted_at
+		FROM rol
+		WHERE id = $1 AND deleted_at IS NULL
+	`
+	var rol model.Rol
+	err := r.pool.QueryRow(ctx, query, id).Scan(&rol.ID, &rol.Codigo, &rol.Nombre, &rol.DeletedAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error al buscar rol por id: %w", err)
 	}
 	return &rol, nil
 }

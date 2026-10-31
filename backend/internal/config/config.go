@@ -21,6 +21,7 @@ type Config struct {
 	PostgresPassword string
 	RedisAddr        string
 	RedisPassword    string
+	AppURL           string
 }
 
 func Load() (*Config, error) {
@@ -52,6 +53,7 @@ func Load() (*Config, error) {
 		PostgresPassword: getEnv("POSTGRES_PASSWORD", "biess"),
 		RedisAddr:        getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
+		AppURL:           getEnv("APP_URL", "http://localhost:5173"),
 	}
 
 	return cfg, nil

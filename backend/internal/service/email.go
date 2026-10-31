@@ -11,14 +11,16 @@ type EmailService interface {
 }
 
 type smtpEmailService struct {
-	host string
-	port string
+	host   string
+	port   string
+	appURL string
 }
 
-func NewEmailService(host, port string) EmailService {
+func NewEmailService(host, port, appURL string) EmailService {
 	return &smtpEmailService{
-		host: host,
-		port: port,
+		host:   host,
+		port:   port,
+		appURL: appURL,
 	}
 }
 
@@ -27,7 +29,7 @@ func (s *smtpEmailService) EnviarRecuperacion(destinatario, token string) error 
 	from := "noreply@biess.gob.ec"
 	subject := "Recuperación de credenciales - SRPD BIESS"
 
-	link := fmt.Sprintf("http://localhost:5173/restablecer?token=%s", token)
+	link := fmt.Sprintf("%s/restablecer?token=%s", s.appURL, token)
 
 	body := fmt.Sprintf("Subject: %s\r\n"+
 		"From: %s\r\n"+
@@ -45,7 +47,7 @@ func (s *smtpEmailService) EnviarRecuperacion(destinatario, token string) error 
 	// Mailpit no requiere autenticación en desarrollo local
 	err := smtp.SendMail(addr, nil, from, []string{destinatario}, []byte(body))
 	if err != nil {
-		log.Printf("[EMAIL WARN] No se pudo enviar correo de recuperación a %s: %v", destinatario, err)
+		log.Printf("[EMAIL WARN] No se pudo enviar correo de recuperación: %v", err)
 		return err
 	}
 

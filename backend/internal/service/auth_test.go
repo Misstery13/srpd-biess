@@ -54,6 +54,10 @@ func (m *mockPostulanteRepo) BuscarRolPorCodigo(ctx context.Context, codigo stri
 	return &model.Rol{ID: 1, Codigo: codigo, Nombre: "Postulante"}, nil
 }
 
+func (m *mockPostulanteRepo) BuscarRolPorID(ctx context.Context, id int) (*model.Rol, error) {
+	return &model.Rol{ID: id, Codigo: "POSTULANTE", Nombre: "Postulante"}, nil
+}
+
 type mockAuthCache struct {
 	intentos    map[string]int64
 	bloqueados  map[string]bool
@@ -280,7 +284,32 @@ func TestAuthService_RecuperarYRestablecer(t *testing.T) {
 	})
 
 	dactilar := "V4443V4444"
-	// 1. Solicitar recuperación
+	dactilarErr := "V0000V0000"
+
+	// 0. Probar límite de 3 intentos fallidos en Recuperar (Bloqueante 1)
+	var clientErr ClientError
+	for i := 1; i <= 2; i++ {
+		err := svc.Recuperar(ctx, RecuperarRequest{
+			Cedula:         "1710034065",
+			CodigoDactilar: &dactilarErr,
+		})
+		if !errors.As(err, &clientErr) || clientErr.StatusCode() != 401 {
+			t.Fatalf("intento %d fallido: se esperaba 401, se obtuvo %v", i, err)
+		}
+	}
+	// 3er fallo consecutivo -> 429
+	errBloq := svc.Recuperar(ctx, RecuperarRequest{
+		Cedula:         "1710034065",
+		CodigoDactilar: &dactilarErr,
+	})
+	if !errors.As(errBloq, &clientErr) || clientErr.StatusCode() != 429 {
+		t.Fatalf("se esperaba 429 tras 3 fallos en recuperación, se obtuvo: %v", errBloq)
+	}
+
+	// Reiniciar para continuar el flujo
+	_ = cache.ReiniciarIntentos(ctx, "recuperar", "1710034065")
+
+	// 1. Solicitar recuperación con datos válidos
 	err := svc.Recuperar(ctx, RecuperarRequest{
 		Cedula:         "1710034065",
 		CodigoDactilar: &dactilar,
@@ -304,7 +333,6 @@ func TestAuthService_RecuperarYRestablecer(t *testing.T) {
 		Token:    "token-invalido",
 		Password: "NuevaPassword456",
 	})
-	var clientErr ClientError
 	if !errors.As(err, &clientErr) || clientErr.StatusCode() != 400 {
 		t.Fatalf("esperaba error 400 por token inválido, obtuvo %v", err)
 	}

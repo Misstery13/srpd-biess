@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"log"
 	"strconv"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/Misstery13/srpd-biess/backend/internal/model"
 	"github.com/Misstery13/srpd-biess/backend/internal/repository"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -224,6 +226,10 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 	}
 
 	if err := s.postRepo.Crear(ctx, postulante); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return NewErrConflicto("La cédula o correo electrónico ya se encuentra registrado")
+		}
 		return err
 	}
 
@@ -277,13 +283,20 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	// Éxito: reinicia contador de intentos (S5)
 	_ = s.cache.ReiniciarIntentos(ctx, "login", req.Cedula)
 
-	// S2, R2: JWT de 2 horas con sub y rol
+	// R2: Obtener código de rol a partir del rol_id del postulante
+	rolCodigo := "POSTULANTE"
+	if postulante.RolID > 0 {
+		if rol, err := s.postRepo.BuscarRolPorID(ctx, postulante.RolID); err == nil && rol != nil {
+			rolCodigo = rol.Codigo
+		}
+	}
+
+	// S2, R2: JWT de 2 horas con sub y rol únicamente (L2 - minimización: sin cédula)
 	claims := jwt.MapClaims{
-		"sub":    strconv.Itoa(postulante.ID),
-		"rol":    "POSTULANTE",
-		"cedula": postulante.Cedula,
-		"exp":    time.Now().Add(2 * time.Hour).Unix(),
-		"iat":    time.Now().Unix(),
+		"sub": strconv.Itoa(postulante.ID),
+		"rol": rolCodigo,
+		"exp": time.Now().Add(2 * time.Hour).Unix(),
+		"iat": time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -301,6 +314,16 @@ func (s *authService) Recuperar(ctx context.Context, req RecuperarRequest) error
 
 	if !ValidarCedula(req.Cedula) {
 		return NewErrValidacion("El número de cédula ingresado no es válido")
+	}
+
+	// S4: Verificar si está bloqueado por 3 intentos fallidos
+	bloqueado, err := s.cache.EstaBloqueado(ctx, "recuperar", req.Cedula)
+	if err != nil && err != cache.ErrRedisNoDisponible {
+		return NewErrServicioNoDisponible("Servicio temporalmente no disponible")
+	}
+	if bloqueado {
+		log.Printf("[AUTH WARN] Intento de recuperación con cédula bloqueada: %s", EnmascararCedula(req.Cedula))
+		return NewErrBloqueado("registro fallido, inténtelo nuevamente en 10 minutos")
 	}
 
 	// Verificar datos contra Registro Civil
@@ -326,8 +349,17 @@ func (s *authService) Recuperar(ctx context.Context, req RecuperarRequest) error
 	}
 
 	if !datosValidos {
+		// S4: Incrementar intentos de recuperación y bloquear al 3er fallo
+		n, _ := s.cache.IncrementarIntentos(ctx, "recuperar", req.Cedula)
+		if n >= cache.MaxIntentos {
+			log.Printf("[AUTH ALERTA] Bloqueo de recuperación aplicado para cédula %s", EnmascararCedula(req.Cedula))
+			return NewErrBloqueado("registro fallido, inténtelo nuevamente en 10 minutos")
+		}
 		return NewErrNoAutorizado("la información ingresada es incorrecta")
 	}
+
+	// Si los datos son correctos, reiniciar intentos de recuperación (S5)
+	_ = s.cache.ReiniciarIntentos(ctx, "recuperar", req.Cedula)
 
 	// Buscar si está registrado como postulante activo
 	postulante, err := s.postRepo.BuscarActivoPorCedula(ctx, req.Cedula)
@@ -377,6 +409,10 @@ func (s *authService) Restablecer(ctx context.Context, req RestablecerRequest) e
 	if err := s.postRepo.ActualizarPassword(ctx, cedula, string(hash)); err != nil {
 		return err
 	}
+
+	// Reiniciar intentos de login y recuperacion para no dejar bloqueado al postulante
+	_ = s.cache.ReiniciarIntentos(ctx, "login", cedula)
+	_ = s.cache.ReiniciarIntentos(ctx, "recuperar", cedula)
 
 	log.Printf("[AUTH] Contraseña restablecida con éxito para cédula %s", EnmascararCedula(cedula))
 	return nil
