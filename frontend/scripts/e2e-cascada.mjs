@@ -16,9 +16,9 @@ const opciones = (sel) => js(`[...document.querySelector('${sel}')?.options ?? [
 const existe = (sel) => js(`!!document.querySelector('${sel}')`)
 const deshab = (sel) => js(`document.querySelector('${sel}').disabled`)
 
-// /postulacion es ruta protegida: se simula una sesión iniciada (los catálogos son públicos)
+// /postulacion es ruta protegida: sesión simulada de la persona de prueba 1710034065 (VITE_MOCK=true)
 await ir(new URL('/', url).href, 500)
-await js(`sessionStorage.setItem('token', 'e2e')`)
+await js(`sessionStorage.setItem('token', 'mock.1710034065')`)
 await ir(url, 2500)
 
 ok((await opciones('#pais')).includes('Ecuador'), 'países cargados')

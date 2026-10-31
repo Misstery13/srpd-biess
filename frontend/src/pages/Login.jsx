@@ -8,7 +8,7 @@ import { cedulaValida } from '../utils/validaciones.js'
 
 // EF-11 puntos 5 y 6: ingreso con cédula y contraseña
 export default function Login() {
-  const { autenticado, sesionExpirada, iniciarSesion } = useAuth()
+  const { autenticado, aviso: avisoSesion, iniciarSesion } = useAuth()
   const aviso = useLocation().state?.aviso
   const navigate = useNavigate()
   const [form, setForm] = useState({ cedula: '', password: '' })
@@ -44,7 +44,7 @@ export default function Login() {
   return (
     <Tarjeta titulo="Iniciar sesión">
       <form onSubmit={enviar} noValidate className="flex flex-col gap-4">
-        {sesionExpirada && <Alerta tipo="info">Su sesión terminó. Ingrese nuevamente.</Alerta>}
+        <Alerta tipo="info">{avisoSesion}</Alerta>
         <Alerta tipo="info">{aviso}</Alerta>
         <Alerta>{error}</Alerta>
         <Campo
