@@ -8,6 +8,13 @@ export const MENSAJES = {
   loginBloqueado: 'demasiados intentos fallidos, inténtelo nuevamente en 10 minutos',
 }
 
+// 401 y 429 muestran el mensaje exacto del documento; cualquier otro error, el del servidor
+export function mensajeError(err, msg401, msg429 = err.message) {
+  if (err.status === 401) return msg401
+  if (err.status === 429) return msg429
+  return err.message
+}
+
 const MOCK = import.meta.env.VITE_MOCK === 'true'
 
 export async function verificar(datos) {

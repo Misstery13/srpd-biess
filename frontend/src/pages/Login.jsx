@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Alerta, Boton, Campo, Tarjeta } from '../components/Formulario.jsx'
 import { useAuth } from '../context/auth.js'
 import useBloqueo from '../hooks/useBloqueo.js'
-import { login, MENSAJES } from '../services/auth.js'
+import { login, mensajeError, MENSAJES } from '../services/auth.js'
 import { cedulaValida } from '../utils/validaciones.js'
 
 // EF-11 puntos 5 y 6: ingreso con cédula y contraseña
@@ -36,7 +36,7 @@ export default function Login() {
       navigate('/postulacion', { replace: true })
     } catch (err) {
       if (err.status === 429) bloquear()
-      setError(err.status === 401 ? MENSAJES.credencialesIncorrectas : err.status === 429 ? MENSAJES.loginBloqueado : err.message)
+      setError(mensajeError(err, MENSAJES.credencialesIncorrectas, MENSAJES.loginBloqueado))
       setCargando(false)
     }
   }

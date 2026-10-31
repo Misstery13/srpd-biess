@@ -28,12 +28,16 @@ export function Campo({ id, etiqueta, error, ...props }) {
 // first-letter:uppercase: el texto del DOM queda exactamente como el documento, solo cambia cómo se ve
 export function Alerta({ tipo = 'error', children }) {
   if (!children) return null
-  const color = tipo === 'error' ? 'border-red-300 bg-red-50 text-red-800' : 'border-emerald-300 bg-emerald-50 text-emerald-900'
-  return (
-    <p role={tipo === 'error' ? 'alert' : 'status'} className={`rounded-md border px-3 py-2 text-sm first-letter:uppercase ${color}`}>
-      {children}
-    </p>
-  )
+  const estilo = 'block rounded-md border px-3 py-2 text-sm first-letter:uppercase'
+  if (tipo === 'error') {
+    return (
+      <p role="alert" className={`${estilo} border-red-300 bg-red-50 text-red-800`}>
+        {children}
+      </p>
+    )
+  }
+  // <output> tiene role="status" implícito: los lectores de pantalla anuncian el aviso
+  return <output className={`${estilo} border-emerald-300 bg-emerald-50 text-emerald-900`}>{children}</output>
 }
 
 export function Boton({ cargando, disabled, children }) {

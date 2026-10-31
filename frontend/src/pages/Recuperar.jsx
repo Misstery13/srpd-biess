@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import CamposIdentidad from '../components/CamposIdentidad.jsx'
 import { Alerta, Boton, Tarjeta } from '../components/Formulario.jsx'
 import useBloqueo from '../hooks/useBloqueo.js'
-import { MENSAJES, recuperar } from '../services/auth.js'
+import { mensajeError, MENSAJES, recuperar } from '../services/auth.js'
 import { IDENTIDAD_VACIA, validarIdentidad } from '../utils/validaciones.js'
 
 // EF-11 punto 6: cédula + fecha de expedición ó código dactilar → correo para restablecer la contraseña
@@ -27,7 +27,7 @@ export default function Recuperar() {
       setEnviado(true)
     } catch (err) {
       if (err.status === 429) bloquear()
-      setError(err.status === 401 ? MENSAJES.identidadIncorrecta : err.message)
+      setError(mensajeError(err, MENSAJES.identidadIncorrecta))
     }
     setCargando(false)
   }

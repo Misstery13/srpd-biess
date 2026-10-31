@@ -18,7 +18,12 @@ export const passwordValida = (p) => p.length >= 8 && /[A-Za-z]/.test(p) && /\d/
 // V3: código dactilar = 10 caracteres alfanuméricos
 export const codigoDactilarValido = (c) => /^[A-Z0-9]{10}$/.test(c)
 
-export const emailValido = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)
+export function emailValido(email) {
+  const partes = email.split('@')
+  if (partes.length !== 2 || /\s/.test(email)) return false
+  const [usuario, dominio] = partes
+  return usuario.length > 0 && dominio.includes('.') && !dominio.startsWith('.') && !dominio.endsWith('.')
+}
 
 // Mientras se escribe: deja solo dígitos e inserta las barras → DD/MM/AAAA
 export function formatearFecha(texto) {

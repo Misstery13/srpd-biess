@@ -4,7 +4,7 @@ import CamposIdentidad from '../components/CamposIdentidad.jsx'
 import { Alerta, Boton, Campo, Tarjeta } from '../components/Formulario.jsx'
 import { useAuth } from '../context/auth.js'
 import useBloqueo from '../hooks/useBloqueo.js'
-import { MENSAJES, registrar, verificar } from '../services/auth.js'
+import { mensajeError, MENSAJES, registrar, verificar } from '../services/auth.js'
 import { emailValido, IDENTIDAD_VACIA, validarIdentidad, validarPassword } from '../utils/validaciones.js'
 
 // EF-11 punto 4: (1) verificar identidad con el Registro Civil → (2) correo y contraseña
@@ -30,7 +30,7 @@ export default function Registro() {
       await accion()
     } catch (err) {
       if (err.status === 429) bloquear()
-      setError(err.status === 401 ? MENSAJES.identidadIncorrecta : err.status === 429 ? MENSAJES.registroBloqueado : err.message)
+      setError(mensajeError(err, MENSAJES.identidadIncorrecta, MENSAJES.registroBloqueado))
     }
     setCargando(false)
   }
@@ -38,14 +38,14 @@ export default function Registro() {
   function enviarIdentidad(e) {
     e.preventDefault()
     const { errores: errs, datos } = validarIdentidad(identidad)
-    ejecutar(errs, async () => setNombres((await verificar(datos)).nombres))
+    void ejecutar(errs, async () => setNombres((await verificar(datos)).nombres))
   }
 
   function enviarCuenta(e) {
     e.preventDefault()
     const errs = validarPassword(cuenta.password, cuenta.confirmar)
     if (!emailValido(cuenta.email)) errs.email = 'Ingrese un correo electrónico válido.'
-    ejecutar(errs, async () => {
+    void ejecutar(errs, async () => {
       await registrar({ cedula: identidad.cedula, email: cuenta.email.trim(), password: cuenta.password })
       // EF-11 punto 5: registro correcto → pantalla principal para ingresar con cédula y contraseña
       navigate('/login', { replace: true, state: { aviso: 'Registro exitoso. Ingrese con su cédula y contraseña.' } })
