@@ -21,3 +21,6 @@ Thumbs.db
 # Claude
 .claude/
 CLAUDE.md
+
+# Archivos subidos por postulantes
+backend/uploads/
