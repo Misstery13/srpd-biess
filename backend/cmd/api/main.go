@@ -85,6 +85,14 @@ func main() {
 	periodoSvc := service.NewPeriodoService(periodoRepo)
 	periodoHdl := handler.NewPeriodoHandler(periodoSvc)
 
+	// Postulante y Postulación (EF-12, Issue #11)
+	postulanteSvc := service.NewPostulanteService(postRepo, cfg.UploadsDir)
+	postulanteHdl := handler.NewPostulanteHandler(postulanteSvc)
+
+	postulacionRepo := repository.NewPostulacionRepository(pgPool)
+	postulacionSvc := service.NewPostulacionService(postulacionRepo, postRepo, periodoSvc, emailSvc, cfg.UploadsDir)
+	postulacionHdl := handler.NewPostulacionHandler(postulacionSvc)
+
 	// 5. Configuración de Gin (Menor 1 y Menor 2)
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -131,42 +139,25 @@ func main() {
 	// Periodo de postulación (Público - T2)
 	router.GET("/api/periodo", periodoHdl.ObtenerPeriodo)
 
-	// Rutas protegidas (Requieren JWT y validación RBAC - R3, R4)
+	// Rutas protegidas de postulante (Requieren JWT y validación RBAC - R3, R4)
 	postulanteGroup := router.Group("/api/postulante")
 	postulanteGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
 	postulanteGroup.Use(handler.RBACMiddleware(permisoRepo))
 	{
-		postulanteGroup.GET("/me", func(c *gin.Context) {
-			postulanteID := c.GetString("postulante_id")
-			c.JSON(http.StatusOK, gin.H{
-				"postulante_id": postulanteID,
-				"rol":           c.GetString("rol"),
-			})
-		})
+		postulanteGroup.GET("/me", postulanteHdl.ObtenerPerfil)
+		postulanteGroup.DELETE("/me", postulanteHdl.SuprimirCuenta)
 	}
 
 	// Rutas protegidas de postulación (Requieren JWT y validación RBAC - R3, R4)
-	// Los handlers se implementarán en Fase 3 (EF-12). El middleware ya está activo.
 	postulacionGroup := router.Group("/api/postulacion")
 	postulacionGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
 	postulacionGroup.Use(handler.RBACMiddleware(permisoRepo))
 	{
-		// Stubs — serán reemplazados por handlers reales en Fase 3
-		postulacionGroup.POST("/validar-cargo", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
-		})
-		postulacionGroup.GET("", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
-		})
-		postulacionGroup.PUT("", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
-		})
-		postulacionGroup.POST("/documentos", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
-		})
-		postulacionGroup.POST("/enviar", func(c *gin.Context) {
-			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
-		})
+		postulacionGroup.POST("/validar-cargo", postulacionHdl.ValidarCargo)
+		postulacionGroup.GET("", postulacionHdl.Obtener)
+		postulacionGroup.PUT("", postulacionHdl.Guardar)
+		postulacionGroup.POST("/documentos", postulacionHdl.SubirDocumento)
+		postulacionGroup.POST("/enviar", postulacionHdl.Enviar)
 	}
 
 	log.Printf("Servidor API escuchando en el puerto :%s", cfg.AppPort)

@@ -8,6 +8,7 @@ import (
 
 type EmailService interface {
 	EnviarRecuperacion(destinatario, token string) error
+	EnviarConfirmacionPostulacion(destinatario, codigo string) error
 }
 
 type smtpEmailService struct {
@@ -50,5 +51,34 @@ func (s *smtpEmailService) EnviarRecuperacion(destinatario, token string) error 
 	}
 
 	log.Printf("[EMAIL] Correo de recuperación enviado satisfactoriamente a destinatario")
+	return nil
+}
+
+func (s *smtpEmailService) EnviarConfirmacionPostulacion(destinatario, codigo string) error {
+	addr := fmt.Sprintf("%s:%s", s.host, s.port)
+	from := "noreply@biess.gob.ec"
+	subject := fmt.Sprintf("Confirmación de Envío de Postulación - %s", codigo)
+
+	body := fmt.Sprintf("Subject: %s\r\n"+
+		"From: %s\r\n"+
+		"To: %s\r\n"+
+		"MIME-Version: 1.0\r\n"+
+		"Content-Type: text/html; charset=UTF-8\r\n\r\n"+
+		"<p>Estimado/a postulante,</p>"+
+		"<p>Su postulación para el Concurso de Méritos y Oposición del Directorio del BIESS ha sido enviada exitosamente.</p>"+
+		"<p><strong>Código de Postulación:</strong> %s</p>"+
+		"<p>Guarde este código para futuras consultas y el seguimiento del concurso.</p>"+
+		"<p>Atentamente,<br>Comisión Técnica BIESS</p>",
+		subject, from, destinatario, codigo,
+	)
+
+	err := smtp.SendMail(addr, nil, from, []string{destinatario}, []byte(body))
+	if err != nil {
+		log.Printf("[EMAIL WARN] No se pudo enviar confirmacion de postulacion a %s: %v", destinatario, err)
+		return err
+	}
+
+	// I2, L4: El log solo dice "correo enviado a postulación BIESS-2026-XXXXXX", nunca datos personales
+	log.Printf("[EMAIL] correo enviado a postulación %s", codigo)
 	return nil
 }
