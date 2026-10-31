@@ -15,8 +15,8 @@ type PostulantePerfil struct {
 	EstadoCivil     string    `json:"estado_civil"`
 	ConyugeNombres  *string   `json:"conyuge_nombres,omitempty"`
 	ConyugeCedula   *string   `json:"conyuge_cedula,omitempty"`
-	FechaExpedicion time.Time `json:"fecha_expedicion"`
-	CodigoDactilar  string    `json:"codigo_dactilar"`
+	FechaExpedicion time.Time `json:"-"`
+	CodigoDactilar  string    `json:"-"`
 	EsAfiliado      bool      `json:"es_afiliado"`
 	EsJubilado      bool      `json:"es_jubilado"`
 	EsEmpleador     bool      `json:"es_empleador"`

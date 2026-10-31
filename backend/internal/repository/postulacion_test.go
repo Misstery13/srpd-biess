@@ -189,4 +189,12 @@ func TestPostulacionRepository_TransaccionalYRollback(t *testing.T) {
 	if countFamiliares != 0 {
 		t.Errorf("las tablas hijas deberían haberse eliminado físicamente en la supresión, quedaron: %d", countFamiliares)
 	}
+
+	// Verificar que en postulaciones se conserva solo cédula, código y fechas (B4)
+	var cargoPostBaja *string
+	var orgNombreBaja *string
+	_ = pool.QueryRow(ctx, "SELECT cargo, org_nombre FROM postulaciones WHERE id = $1", obtenida.ID).Scan(&cargoPostBaja, &orgNombreBaja)
+	if cargoPostBaja != nil || orgNombreBaja != nil {
+		t.Errorf("postulación dada de baja debe limpiar cargo y organización (B4)")
+	}
 }

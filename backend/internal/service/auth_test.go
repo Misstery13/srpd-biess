@@ -137,7 +137,7 @@ func (m *mockEmailService) EnviarRecuperacion(destinatario, token string) error 
 	return nil
 }
 
-func (m *mockEmailService) EnviarConfirmacionPostulacion(destinatario, codigo string) error {
+func (m *mockEmailService) EnviarConfirmacionPostulacion(destinatario, codigo string, postulacion *model.PostulacionCompleta, perfil *model.PostulantePerfil) error {
 	m.enviados = append(m.enviados, destinatario)
 	return nil
 }

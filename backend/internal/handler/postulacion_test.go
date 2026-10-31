@@ -80,7 +80,7 @@ type mockEmailServiceForHandler struct{}
 func (m *mockEmailServiceForHandler) EnviarRecuperacion(destinatario, token string) error {
 	return nil
 }
-func (m *mockEmailServiceForHandler) EnviarConfirmacionPostulacion(destinatario, codigo string) error {
+func (m *mockEmailServiceForHandler) EnviarConfirmacionPostulacion(destinatario, codigo string, postulacion *model.PostulacionCompleta, perfil *model.PostulantePerfil) error {
 	return nil
 }
 
@@ -105,6 +105,7 @@ func setupPostulacionTestRouter() (*gin.Engine, *mockPostulanteRepoForHandler, *
 
 	periodoSvc := service.NewPeriodoService(&mockPeriodoRepoForHandler{})
 	emailSvc := &mockEmailServiceForHandler{}
+	cargoAfiliados := "AFILIADOS"
 	postulacionRepo := &mockPostulacionRepoForHandler{
 		estado: "BORRADOR",
 		postulacion: &model.PostulacionCompleta{
@@ -113,6 +114,7 @@ func setupPostulacionTestRouter() (*gin.Engine, *mockPostulanteRepoForHandler, *
 				Codigo:       "BIESS-2026-000001",
 				PostulanteID: 1,
 				Estado:       "BORRADOR",
+				Cargo:        &cargoAfiliados,
 			},
 		},
 	}

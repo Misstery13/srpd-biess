@@ -214,8 +214,17 @@ func (r *pgxPostulanteRepository) SuprimirPostulante(ctx context.Context, postul
 	`, postulanteID).Scan(&postulacionID)
 
 	if err == nil {
-		// Baja lógica de la postulación
-		_, err = tx.Exec(ctx, `UPDATE postulaciones SET deleted_at = now() WHERE id = $1`, postulacionID)
+		// Baja lógica de la postulación: conservar solo cédula, código y fechas (B4)
+		_, err = tx.Exec(ctx, `
+			UPDATE postulaciones 
+			SET deleted_at = now(), 
+			    cargo = NULL, 
+			    respaldo_org = NULL, 
+			    org_nombre = NULL, 
+			    org_documento = NULL, 
+			    updated_at = now() 
+			WHERE id = $1
+		`, postulacionID)
 		if err != nil {
 			return fmt.Errorf("error al dar de baja postulacion: %w", err)
 		}

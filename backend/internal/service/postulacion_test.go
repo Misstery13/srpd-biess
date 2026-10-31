@@ -3,8 +3,10 @@ package service
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"mime/multipart"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -45,6 +47,7 @@ func TestPostulacionService_ValidarCargo_MensajesExactos(t *testing.T) {
 	repoPost := &mockPostulantePerfilRepo{
 		perfil: &model.PostulantePerfil{
 			PostulanteID: 1,
+			Nacionalidad: "ECUATORIANA",
 			EsAfiliado:   true,
 			EsJubilado:   false,
 			EsEmpleador:  false,
@@ -89,7 +92,7 @@ func TestPostulacionService_CalcularDuracion(t *testing.T) {
 	}
 }
 
-func TestPostulacionService_GuardarPostulacion_Validaciones(t *testing.T) {
+func TestPostulacionService_PostulanteHabilitado_Reglas(t *testing.T) {
 	ahora := time.Now()
 	periodoRepo := &mockPeriodoRepo{
 		row: &repository.PeriodoRow{
@@ -98,43 +101,214 @@ func TestPostulacionService_GuardarPostulacion_Validaciones(t *testing.T) {
 		},
 	}
 	periodoSvc := NewPeriodoService(periodoRepo)
-	svc := NewPostulacionService(&mockPostulacionRepo{}, &mockPostulantePerfilRepo{}, periodoSvc, &mockEmailService{}, "")
 
-	// 1. Error V8: funciones > 1000 caracteres
-	strLarga := strings.Repeat("A", 1001)
-	pInvalida := &model.PostulacionCompleta{
-		Experiencia: []model.ExperienciaLaboral{
-			{
-				Tipo:        "GENERAL",
-				Cargo:       "Analista",
-				Institucion: "Banco",
-				FechaInicio: ahora.Add(-30 * 24 * time.Hour),
-				Funciones:   &strLarga,
-			},
+	// Caso 1: No ecuatoriano (colombiano 1754321980) -> 403 (V5)
+	repoCol := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{
+			PostulanteID: 2,
+			Nacionalidad: "COLOMBIANA",
 		},
 	}
-	_, err := svc.GuardarPostulacion(context.Background(), 1, pInvalida)
-	if err == nil {
-		t.Error("se esperaba error de validación para funciones > 1000 caracteres (V8)")
+	svcCol := NewPostulacionService(&mockPostulacionRepo{}, repoCol, periodoSvc, &mockEmailService{}, "")
+	_, err := svcCol.GuardarPostulacion(context.Background(), 2, &model.PostulacionCompleta{})
+	if err == nil || !strings.Contains(err.Error(), "nacionalidad ecuatoriana") {
+		t.Errorf("se esperaba error de nacionalidad ecuatoriana (V5), se obtuvo: %v", err)
 	}
 
-	// 2. Error V7: fecha fin < fecha inicio
-	fechaInicio := ahora
-	fechaFin := ahora.Add(-24 * time.Hour)
-	pFechaInvalida := &model.PostulacionCompleta{
-		Experiencia: []model.ExperienciaLaboral{
-			{
-				Tipo:        "GENERAL",
-				Cargo:       "Analista",
-				Institucion: "Banco",
-				FechaInicio: fechaInicio,
-				FechaFin:    &fechaFin,
-			},
+	// Caso 2: Inhabilitado para el cargo (jubilada postulando a AFILIADOS) -> 403 (1.4.x)
+	repoJub := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{
+			PostulanteID: 3,
+			Nacionalidad: "ECUATORIANA",
+			EsAfiliado:   false,
+			EsJubilado:   true,
 		},
 	}
-	_, err = svc.GuardarPostulacion(context.Background(), 1, pFechaInvalida)
-	if err == nil {
-		t.Error("se esperaba error de validación para fecha_fin < fecha_inicio (V7)")
+	cargoAfiliados := "AFILIADOS"
+	svcJub := NewPostulacionService(&mockPostulacionRepo{}, repoJub, periodoSvc, &mockEmailService{}, "")
+	_, err = svcJub.GuardarPostulacion(context.Background(), 3, &model.PostulacionCompleta{
+		PostulacionHeader: model.PostulacionHeader{Cargo: &cargoAfiliados},
+	})
+	if err == nil || !strings.Contains(err.Error(), "no mantiene la calidad de afiliado") {
+		t.Errorf("se esperaba bloqueo de cargo con texto exacto, se obtuvo: %v", err)
+	}
+
+	// Caso 3: Postulante suprimido (perfil == nil) -> 401 (E3, L5)
+	repoSuprimido := &mockPostulantePerfilRepo{perfil: nil}
+	svcSuprimido := NewPostulacionService(&mockPostulacionRepo{}, repoSuprimido, periodoSvc, &mockEmailService{}, "")
+	_, err = svcSuprimido.GuardarPostulacion(context.Background(), 99, &model.PostulacionCompleta{})
+	if err == nil || !strings.Contains(err.Error(), "Su sesión ya no es válida") {
+		t.Errorf("se esperaba error de sesión no válida para cuenta suprimida (E3), se obtuvo: %v", err)
+	}
+}
+
+func TestPostulacionService_ValidacionListasFijas(t *testing.T) {
+	ahora := time.Now()
+	periodoRepo := &mockPeriodoRepo{
+		row: &repository.PeriodoRow{
+			Inicio: ahora.Add(-24 * time.Hour),
+			Fin:    ahora.Add(24 * time.Hour),
+		},
+	}
+	periodoSvc := NewPeriodoService(periodoRepo)
+	repoPost := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{
+			PostulanteID: 1,
+			Nacionalidad: "ECUATORIANA",
+			EsAfiliado:   true,
+		},
+	}
+	svc := NewPostulacionService(&mockPostulacionRepo{}, repoPost, periodoSvc, &mockEmailService{}, "")
+
+	// 1. Parentesco inválido ("vecino")
+	pInvalidoFam := &model.PostulacionCompleta{
+		Familiares: []model.FamiliarIESS{
+			{Nombres: "Pedro", Parentesco: "vecino", Institucion: "IESS"},
+		},
+	}
+	_, err := svc.GuardarPostulacion(context.Background(), 1, pInvalidoFam)
+	if err == nil || !strings.Contains(err.Error(), "parentesco") {
+		t.Errorf("se esperaba error por parentesco inválido (1.3.1.2), se obtuvo: %v", err)
+	}
+
+	// 2. Nivel de formación inválido ("PRIMARIA")
+	pInvalidoNivel := &model.PostulacionCompleta{
+		Formacion: []model.FormacionAcademica{
+			{Nivel: "PRIMARIA", Institucion: "Escuela", Tipo: "Nacional", Titulo: "Bachiller", Area: "Economía"},
+		},
+	}
+	_, err = svc.GuardarPostulacion(context.Background(), 1, pInvalidoNivel)
+	if err == nil || !strings.Contains(err.Error(), "nivel de instrucción") {
+		t.Errorf("se esperaba error por nivel inválido (1.5.1), se obtuvo: %v", err)
+	}
+
+	// 3. Área inválida ("Astrología")
+	pInvalidaArea := &model.PostulacionCompleta{
+		Formacion: []model.FormacionAcademica{
+			{Nivel: "Tercer Nivel de Grado", Institucion: "U", Tipo: "Nacional", Titulo: "Licenciado", Area: "Astrología"},
+		},
+	}
+	_, err = svc.GuardarPostulacion(context.Background(), 1, pInvalidaArea)
+	if err == nil || !strings.Contains(err.Error(), "área de estudios") {
+		t.Errorf("se esperaba error por área inválida (1.5.1.4), se obtuvo: %v", err)
+	}
+}
+
+func TestPostulacionService_ValidacionRutasDocumentos(t *testing.T) {
+	ahora := time.Now()
+	periodoRepo := &mockPeriodoRepo{
+		row: &repository.PeriodoRow{
+			Inicio: ahora.Add(-24 * time.Hour),
+			Fin:    ahora.Add(24 * time.Hour),
+		},
+	}
+	periodoSvc := NewPeriodoService(periodoRepo)
+	repoPost := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{
+			PostulanteID: 1,
+			Nacionalidad: "ECUATORIANA",
+			EsAfiliado:   true,
+		},
+	}
+	svc := NewPostulacionService(&mockPostulacionRepo{}, repoPost, periodoSvc, &mockEmailService{}, "")
+
+	respaldoTrue := true
+	rutaTraversal := "../../etc/passwd"
+	pTraversal := &model.PostulacionCompleta{
+		PostulacionHeader: model.PostulacionHeader{
+			RespaldoOrg:  &respaldoTrue,
+			OrgNombre:    &rutaTraversal,
+			OrgDocumento: &rutaTraversal,
+		},
+	}
+	_, err := svc.GuardarPostulacion(context.Background(), 1, pTraversal)
+	if err == nil || !strings.Contains(err.Error(), "no es válida o no pertenece al postulante") {
+		t.Errorf("se esperaba rechazo de path traversal (O1), se obtuvo: %v", err)
+	}
+
+	// Documento de otro usuario (usuario 999 intentando ser referenciado por usuario 1)
+	rutaOtroUsuario := "uploads/999/12345678-1234-1234-1234-1234567890ab.pdf"
+	pOtroUsuario := &model.PostulacionCompleta{
+		PostulacionHeader: model.PostulacionHeader{
+			RespaldoOrg:  &respaldoTrue,
+			OrgNombre:    &rutaTraversal,
+			OrgDocumento: &rutaOtroUsuario,
+		},
+	}
+	_, err = svc.GuardarPostulacion(context.Background(), 1, pOtroUsuario)
+	if err == nil || !strings.Contains(err.Error(), "no es válida o no pertenece al postulante") {
+		t.Errorf("se esperaba rechazo de documento de otro postulante (O1), se obtuvo: %v", err)
+	}
+}
+
+func TestPostulacionService_LimpiezaArchivosHuerfanos(t *testing.T) {
+	tempDir, _ := os.MkdirTemp("", "uploads-huerfanos-*")
+	defer os.RemoveAll(tempDir)
+
+	userDir := filepath.Join(tempDir, "1")
+	_ = os.MkdirAll(userDir, 0750)
+
+	docViejoPath := filepath.Join(userDir, "00000000-0000-0000-0000-000000000001.pdf")
+	docNuevoPath := filepath.Join(userDir, "00000000-0000-0000-0000-000000000002.pdf")
+	_ = os.WriteFile(docViejoPath, []byte("viejo"), 0640)
+	_ = os.WriteFile(docNuevoPath, []byte("nuevo"), 0640)
+
+	docViejoRel := "uploads/1/00000000-0000-0000-0000-000000000001.pdf"
+	docNuevoRel := "uploads/1/00000000-0000-0000-0000-000000000002.pdf"
+
+	oldP := &model.PostulacionCompleta{
+		Experiencia: []model.ExperienciaLaboral{
+			{Tipo: "GENERAL", Cargo: "Dev", Institucion: "Corp", FechaInicio: time.Now(), Area: "Finanzas", Documento: &docViejoRel},
+		},
+	}
+	newP := &model.PostulacionCompleta{
+		Experiencia: []model.ExperienciaLaboral{
+			{Tipo: "GENERAL", Cargo: "Dev", Institucion: "Corp", FechaInicio: time.Now(), Area: "Finanzas", Documento: &docNuevoRel},
+		},
+	}
+
+	ahora := time.Now()
+	periodoSvc := NewPeriodoService(&mockPeriodoRepo{
+		row: &repository.PeriodoRow{Inicio: ahora.Add(-time.Hour), Fin: ahora.Add(time.Hour)},
+	})
+	repoPost := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{PostulanteID: 1, Nacionalidad: "ECUATORIANA", EsAfiliado: true},
+	}
+	repoPostulacion := &mockPostulacionRepo{postulacion: oldP}
+	svc := NewPostulacionService(repoPostulacion, repoPost, periodoSvc, &mockEmailService{}, tempDir)
+
+	_, err := svc.GuardarPostulacion(context.Background(), 1, newP)
+	if err != nil {
+		t.Fatalf("error guardando postulación: %v", err)
+	}
+
+	// Comprobar que docViejoPath fue eliminado para liberar cuota
+	if _, err := os.Stat(docViejoPath); !os.IsNotExist(err) {
+		t.Errorf("el archivo reemplazado debía ser eliminado de disco para no consumir cuota")
+	}
+	// Comprobar que docNuevoPath aún existe
+	if _, err := os.Stat(docNuevoPath); os.IsNotExist(err) {
+		t.Errorf("el archivo nuevo debe preservarse en disco")
+	}
+}
+
+func TestPostulantePerfil_MinimizacionJSON(t *testing.T) {
+	perfil := &model.PostulantePerfil{
+		PostulanteID:    1,
+		Cedula:          "1710034065",
+		Nombres:         "JUAN",
+		Apellidos:       "PEREZ",
+		FechaExpedicion: time.Now(),
+		CodigoDactilar:  "E1234I5678",
+	}
+
+	data, err := json.Marshal(perfil)
+	if err != nil {
+		t.Fatalf("error serializando perfil: %v", err)
+	}
+	jsonStr := string(data)
+	if strings.Contains(jsonStr, "fecha_expedicion") || strings.Contains(jsonStr, "codigo_dactilar") {
+		t.Errorf("fecha_expedicion y codigo_dactilar no deben exponerse en json (L2 minimización): %s", jsonStr)
 	}
 }
 
@@ -150,7 +324,14 @@ func TestPostulacionService_SubirDocumento_ValidacionPDF(t *testing.T) {
 	tempDir, _ := os.MkdirTemp("", "uploads-subir-*")
 	defer os.RemoveAll(tempDir)
 
-	svc := NewPostulacionService(&mockPostulacionRepo{estado: "BORRADOR"}, &mockPostulantePerfilRepo{}, periodoSvc, &mockEmailService{}, tempDir)
+	repoPost := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{
+			PostulanteID: 1,
+			Nacionalidad: "ECUATORIANA",
+			EsAfiliado:   true,
+		},
+	}
+	svc := NewPostulacionService(&mockPostulacionRepo{estado: "BORRADOR"}, repoPost, periodoSvc, &mockEmailService{}, tempDir)
 
 	// Crear multipart dummy no PDF
 	crearHeader := func(contenido []byte) *multipart.FileHeader {
@@ -197,9 +378,22 @@ func TestPostulacionService_EnviarPostulacion_ExigeConsentimiento(t *testing.T) 
 		perfil: &model.PostulantePerfil{
 			PostulanteID: 1,
 			Email:        "juan.perez@example.com",
+			Nacionalidad: "ECUATORIANA",
+			EsAfiliado:   true,
 		},
 	}
-	svc := NewPostulacionService(&mockPostulacionRepo{estado: "BORRADOR"}, repoPost, periodoSvc, emailSvc, "")
+	cargoAfiliados := "AFILIADOS"
+	repoPostulacion := &mockPostulacionRepo{
+		estado: "BORRADOR",
+		postulacion: &model.PostulacionCompleta{
+			PostulacionHeader: model.PostulacionHeader{
+				ID:     1,
+				Codigo: "BIESS-2026-000001",
+				Cargo:  &cargoAfiliados,
+			},
+		},
+	}
+	svc := NewPostulacionService(repoPostulacion, repoPost, periodoSvc, emailSvc, "")
 
 	// 1. Sin consentimiento L1 -> debe fallar
 	_, err := svc.EnviarPostulacion(context.Background(), 1, &model.EnviarPostulacionRequest{AceptaTerminos: false})

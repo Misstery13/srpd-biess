@@ -34,11 +34,20 @@ func ErrorMiddleware() gin.HandlerFunc {
 				return
 			}
 
-			// 2. Violación de restricción única en PostgreSQL (código 23505) -> 409 (E2)
+			// 2. Mapeo de errores de PostgreSQL (E2)
 			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-				c.JSON(http.StatusConflict, gin.H{"error": "El registro ya existe o se encuentra duplicado."})
-				return
+			if errors.As(err, &pgErr) {
+				switch pgErr.Code {
+				case "23505": // unique_violation -> 409
+					c.JSON(http.StatusConflict, gin.H{"error": "El registro ya existe o se encuentra duplicado."})
+					return
+				case "23514": // check_violation -> 400
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Uno o más campos no cumplen con las restricciones permitidas."})
+					return
+				case "23503": // foreign_key_violation -> 400
+					c.JSON(http.StatusBadRequest, gin.H{"error": "Uno o más valores referenciados no existen en el sistema."})
+					return
+				}
 			}
 
 			// 3. Cualquier otro error no controlado -> 500 sin detalles internos en la respuesta (O5)

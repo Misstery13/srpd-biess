@@ -10,6 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Errores centinela para PostulacionRepository
+var (
+	ErrPostulacionNoEncontrada      = errors.New("postulacion no encontrada")
+	ErrPostulacionYaEnviada         = errors.New("postulacion ya enviada")
+	ErrPostulacionEnviadaNoEditable = errors.New("postulacion enviada no editable")
+	ErrDebeCompletarDomicilio       = errors.New("debe completar domicilio")
+	ErrDebeSeleccionarCargo         = errors.New("debe seleccionar cargo")
+	ErrDebeDeclararInhabilidades    = errors.New("debe declarar inhabilidades")
+)
+
 // PostulacionRepository define las operaciones de persistencia de la postulación (EF-12).
 type PostulacionRepository interface {
 	ObtenerPorPostulanteID(ctx context.Context, postulanteID int) (*model.PostulacionCompleta, error)
@@ -110,14 +120,19 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		ORDER BY id ASC
 	`
 	rowsFam, err := r.pool.Query(ctx, queryFam, postulacionID)
-	if err == nil {
-		defer rowsFam.Close()
-		for rowsFam.Next() {
-			var f model.FamiliarIESS
-			if err := rowsFam.Scan(&f.ID, &f.PostulacionID, &f.Nombres, &f.Parentesco, &f.Institucion, &f.Area, &f.Cargo); err == nil {
-				res.Familiares = append(res.Familiares, f)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener familiares: %w", err)
+	}
+	defer rowsFam.Close()
+	for rowsFam.Next() {
+		var f model.FamiliarIESS
+		if err := rowsFam.Scan(&f.ID, &f.PostulacionID, &f.Nombres, &f.Parentesco, &f.Institucion, &f.Area, &f.Cargo); err != nil {
+			return nil, fmt.Errorf("error al escanear familiar: %w", err)
 		}
+		res.Familiares = append(res.Familiares, f)
+	}
+	if err := rowsFam.Err(); err != nil {
+		return nil, fmt.Errorf("error en filas de familiares: %w", err)
 	}
 
 	// 3. Formación Académica
@@ -128,14 +143,19 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		ORDER BY id ASC
 	`
 	rowsForm, err := r.pool.Query(ctx, queryForm, postulacionID)
-	if err == nil {
-		defer rowsForm.Close()
-		for rowsForm.Next() {
-			var fa model.FormacionAcademica
-			if err := rowsForm.Scan(&fa.ID, &fa.PostulacionID, &fa.Nivel, &fa.Institucion, &fa.Tipo, &fa.Titulo, &fa.Area, &fa.SenescytNumero, &fa.SenescytFecha, &fa.Documento); err == nil {
-				res.Formacion = append(res.Formacion, fa)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener formacion academica: %w", err)
+	}
+	defer rowsForm.Close()
+	for rowsForm.Next() {
+		var fa model.FormacionAcademica
+		if err := rowsForm.Scan(&fa.ID, &fa.PostulacionID, &fa.Nivel, &fa.Institucion, &fa.Tipo, &fa.Titulo, &fa.Area, &fa.SenescytNumero, &fa.SenescytFecha, &fa.Documento); err != nil {
+			return nil, fmt.Errorf("error al escanear formacion academica: %w", err)
 		}
+		res.Formacion = append(res.Formacion, fa)
+	}
+	if err := rowsForm.Err(); err != nil {
+		return nil, fmt.Errorf("error en filas de formacion academica: %w", err)
 	}
 
 	// 4. Experiencia Laboral
@@ -146,14 +166,19 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		ORDER BY fecha_inicio DESC
 	`
 	rowsExp, err := r.pool.Query(ctx, queryExp, postulacionID)
-	if err == nil {
-		defer rowsExp.Close()
-		for rowsExp.Next() {
-			var el model.ExperienciaLaboral
-			if err := rowsExp.Scan(&el.ID, &el.PostulacionID, &el.Tipo, &el.Cargo, &el.Institucion, &el.FechaInicio, &el.FechaFin, &el.Area, &el.Funciones, &el.Documento); err == nil {
-				res.Experiencia = append(res.Experiencia, el)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener experiencia laboral: %w", err)
+	}
+	defer rowsExp.Close()
+	for rowsExp.Next() {
+		var el model.ExperienciaLaboral
+		if err := rowsExp.Scan(&el.ID, &el.PostulacionID, &el.Tipo, &el.Cargo, &el.Institucion, &el.FechaInicio, &el.FechaFin, &el.Area, &el.Funciones, &el.Documento); err != nil {
+			return nil, fmt.Errorf("error al escanear experiencia laboral: %w", err)
 		}
+		res.Experiencia = append(res.Experiencia, el)
+	}
+	if err := rowsExp.Err(); err != nil {
+		return nil, fmt.Errorf("error en filas de experiencia laboral: %w", err)
 	}
 
 	// 5. Publicaciones
@@ -164,14 +189,19 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		ORDER BY fecha DESC
 	`
 	rowsPub, err := r.pool.Query(ctx, queryPub, postulacionID)
-	if err == nil {
-		defer rowsPub.Close()
-		for rowsPub.Next() {
-			var pb model.Publicacion
-			if err := rowsPub.Scan(&pb.ID, &pb.PostulacionID, &pb.Titulo, &pb.Tipo, &pb.Medio, &pb.Fecha, &pb.RelacionProfesional, &pb.Documento); err == nil {
-				res.Publicaciones = append(res.Publicaciones, pb)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener publicaciones: %w", err)
+	}
+	defer rowsPub.Close()
+	for rowsPub.Next() {
+		var pb model.Publicacion
+		if err := rowsPub.Scan(&pb.ID, &pb.PostulacionID, &pb.Titulo, &pb.Tipo, &pb.Medio, &pb.Fecha, &pb.RelacionProfesional, &pb.Documento); err != nil {
+			return nil, fmt.Errorf("error al escanear publicacion: %w", err)
 		}
+		res.Publicaciones = append(res.Publicaciones, pb)
+	}
+	if err := rowsPub.Err(); err != nil {
+		return nil, fmt.Errorf("error en filas de publicaciones: %w", err)
 	}
 
 	// 6. Capacitaciones
@@ -182,14 +212,19 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		ORDER BY fecha_inicio DESC
 	`
 	rowsCap, err := r.pool.Query(ctx, queryCap, postulacionID)
-	if err == nil {
-		defer rowsCap.Close()
-		for rowsCap.Next() {
-			var cp model.Capacitacion
-			if err := rowsCap.Scan(&cp.ID, &cp.PostulacionID, &cp.TipoEvento, &cp.NombreEvento, &cp.Institucion, &cp.FechaInicio, &cp.FechaFin, &cp.Horas, &cp.Documento); err == nil {
-				res.Capacitaciones = append(res.Capacitaciones, cp)
-			}
+	if err != nil {
+		return nil, fmt.Errorf("error al obtener capacitaciones: %w", err)
+	}
+	defer rowsCap.Close()
+	for rowsCap.Next() {
+		var cp model.Capacitacion
+		if err := rowsCap.Scan(&cp.ID, &cp.PostulacionID, &cp.TipoEvento, &cp.NombreEvento, &cp.Institucion, &cp.FechaInicio, &cp.FechaFin, &cp.Horas, &cp.Documento); err != nil {
+			return nil, fmt.Errorf("error al escanear capacitacion: %w", err)
 		}
+		res.Capacitaciones = append(res.Capacitaciones, cp)
+	}
+	if err := rowsCap.Err(); err != nil {
+		return nil, fmt.Errorf("error en filas de capacitaciones: %w", err)
 	}
 
 	// 7. Inhabilidades
@@ -223,10 +258,11 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		&inh.ResponsabilidadContraloria,
 		&inh.RegistradoUAFE,
 	)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return nil, fmt.Errorf("error al obtener inhabilidades: %w", err)
+	}
 	if err == nil {
 		res.Inhabilidades = &inh
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return nil, fmt.Errorf("error al obtener inhabilidades: %w", err)
 	}
 
 	return &res, nil
@@ -245,7 +281,7 @@ func (r *pgxPostulacionRepository) GuardarTransaccional(ctx context.Context, pos
 	var codigo string
 	var estado string
 
-	queryBuscar := `SELECT id, codigo, estado FROM postulaciones WHERE postulante_id = $1 AND deleted_at IS NULL`
+	queryBuscar := `SELECT id, codigo, estado FROM postulaciones WHERE postulante_id = $1 AND deleted_at IS NULL FOR UPDATE`
 	err = tx.QueryRow(ctx, queryBuscar, postulanteID).Scan(&postulacionID, &codigo, &estado)
 
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -270,7 +306,7 @@ func (r *pgxPostulacionRepository) GuardarTransaccional(ctx context.Context, pos
 	} else if err == nil {
 		// P3: Estado ENVIADA no editable
 		if estado == "ENVIADA" || estado == "CERRADA" {
-			return "", errors.New("POSTULACION_ENVIADA_NO_EDITABLE")
+			return "", ErrPostulacionEnviadaNoEditable
 		}
 
 		updateHeader := `
@@ -452,36 +488,36 @@ func (r *pgxPostulacionRepository) EnviarPostulacion(ctx context.Context, postul
 	var codigo string
 	var estado string
 
-	query := `SELECT id, codigo, estado FROM postulaciones WHERE postulante_id = $1 AND deleted_at IS NULL`
+	query := `SELECT id, codigo, estado FROM postulaciones WHERE postulante_id = $1 AND deleted_at IS NULL FOR UPDATE`
 	err = tx.QueryRow(ctx, query, postulanteID).Scan(&postulacionID, &codigo, &estado)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", errors.New("POSTULACION_NO_ENCONTRADA")
+			return "", ErrPostulacionNoEncontrada
 		}
 		return "", err
 	}
 
 	if estado == "ENVIADA" {
-		return "", errors.New("POSTULACION_YA_ENVIADA")
+		return "", ErrPostulacionYaEnviada
 	}
 
 	// Verificar secciones mínimas requeridas: domicilio, cargo e inhabilidades
 	var tieneDomicilio bool
 	_ = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM domicilios WHERE postulacion_id = $1)`, postulacionID).Scan(&tieneDomicilio)
 	if !tieneDomicilio {
-		return "", errors.New("DEBE_COMPLETAR_DOMICILIO")
+		return "", ErrDebeCompletarDomicilio
 	}
 
 	var cargo *string
 	_ = tx.QueryRow(ctx, `SELECT cargo FROM postulaciones WHERE id = $1`, postulacionID).Scan(&cargo)
 	if cargo == nil || *cargo == "" {
-		return "", errors.New("DEBE_SELECCIONAR_CARGO")
+		return "", ErrDebeSeleccionarCargo
 	}
 
 	var tieneInhabilidades bool
 	_ = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM inhabilidades WHERE postulacion_id = $1)`, postulacionID).Scan(&tieneInhabilidades)
 	if !tieneInhabilidades {
-		return "", errors.New("DEBE_DECLARAR_INHABILIDADES")
+		return "", ErrDebeDeclararInhabilidades
 	}
 
 	// L1: Guarda acepta_terminos = true y fecha_consentimiento = now()
