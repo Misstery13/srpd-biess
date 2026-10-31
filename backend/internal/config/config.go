@@ -22,6 +22,7 @@ type Config struct {
 	RedisAddr        string
 	RedisPassword    string
 	UploadsDir       string
+	AppURL           string
 }
 
 func Load() (*Config, error) {
@@ -54,6 +55,7 @@ func Load() (*Config, error) {
 		RedisAddr:        getEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword:    os.Getenv("REDIS_PASSWORD"),
 		UploadsDir:       getEnv("UPLOADS_DIR", "uploads"),
+		AppURL:           getEnv("APP_URL", "http://localhost:5173"),
 	}
 
 	return cfg, nil

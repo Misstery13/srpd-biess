@@ -76,7 +76,7 @@ func main() {
 	postRepo := repository.NewPostulanteRepository(pgPool)
 	permisoRepo := repository.NewPermisoRepository(pgPool)
 	authCache := cache.NewAuthCache(redisClient)
-	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort)
+	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
 	authSvc := service.NewAuthService(rcRepo, postRepo, authCache, emailSvc, cfg.JWTSecret)
 	authHdl := handler.NewAuthHandler(authSvc)
 

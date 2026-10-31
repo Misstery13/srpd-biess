@@ -44,16 +44,15 @@ func (c *redisAuthCache) IncrementarIntentos(ctx context.Context, tipo, cedula s
 	}
 	key := fmt.Sprintf("intentos:%s:%s", tipo, cedula)
 
-	n, err := c.rdb.Incr(ctx, key).Result()
+	pipe := c.rdb.TxPipeline()
+	incr := pipe.Incr(ctx, key)
+	pipe.Expire(ctx, key, IntentosBloqueoTTL)
+	_, err := pipe.Exec(ctx)
 	if err != nil {
 		return 0, err
 	}
 
-	if n == 1 {
-		c.rdb.Expire(ctx, key, IntentosBloqueoTTL)
-	}
-
-	return n, nil
+	return incr.Val(), nil
 }
 
 func (c *redisAuthCache) EstaBloqueado(ctx context.Context, tipo, cedula string) (bool, error) {
