@@ -43,3 +43,6 @@ func NewErrConflicto(message string) error {
 func NewErrBloqueado(message string) error {
 	return &appError{status: http.StatusTooManyRequests, message: message}
 }
+func NewErrServicioNoDisponible(message string) error {
+	return &appError{status: http.StatusServiceUnavailable, message: message}
+}
