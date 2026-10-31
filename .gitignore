@@ -1,0 +1,23 @@
+# Entorno
+.env
+*.local
+
+# Node / Vite
+node_modules/
+dist/
+
+# Go
+backend/bin/
+*.exe
+*.test
+*.out
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+CLAUDE.md
