@@ -168,6 +168,51 @@ CREATE TABLE experiencia_laboral (
     CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio)
 );
 
+CREATE TABLE publicaciones (
+    id                  SERIAL PRIMARY KEY,
+    postulacion_id      INT NOT NULL REFERENCES postulaciones(id) ON DELETE CASCADE,
+    titulo              VARCHAR(250) NOT NULL,
+    tipo                VARCHAR(30)  NOT NULL CHECK (tipo IN ('PUBLICACION', 'INVESTIGACION')),
+    medio               VARCHAR(200) NOT NULL,
+    fecha               DATE NOT NULL,
+    relacion_profesional BOOLEAN NOT NULL DEFAULT FALSE,
+    documento           VARCHAR(255)
+);
+
+CREATE TABLE capacitaciones (
+    id             SERIAL PRIMARY KEY,
+    postulacion_id INT NOT NULL REFERENCES postulaciones(id) ON DELETE CASCADE,
+    tipo_evento    VARCHAR(20)  NOT NULL CHECK (tipo_evento IN ('CURSO', 'SEMINARIO', 'TALLER')),
+    nombre_evento  VARCHAR(200) NOT NULL,
+    institucion    VARCHAR(150) NOT NULL,
+    fecha_inicio   DATE NOT NULL,
+    fecha_fin      DATE NOT NULL,
+    horas          INT NOT NULL CHECK (horas > 0),
+    documento      VARCHAR(255),
+    CHECK (fecha_fin >= fecha_inicio)
+);
+
+CREATE TABLE inhabilidades (
+    postulacion_id                    INT PRIMARY KEY REFERENCES postulaciones(id) ON DELETE CASCADE,
+    goce_derechos_politicos          BOOLEAN NOT NULL DEFAULT TRUE,
+    inhabilitado_comercio             BOOLEAN NOT NULL DEFAULT FALSE,
+    mora_obligaciones_estado         BOOLEAN NOT NULL DEFAULT FALSE,
+    vinculo_sistema_financiero        BOOLEAN NOT NULL DEFAULT FALSE,
+    funcionario_iess_biess            BOOLEAN NOT NULL DEFAULT FALSE,
+    interes_aseguradoras              BOOLEAN NOT NULL DEFAULT FALSE,
+    removido_control                  BOOLEAN NOT NULL DEFAULT FALSE,
+    removido_institucion              VARCHAR(200),
+    removido_cargo                    VARCHAR(100),
+    removido_fecha_fin                DATE,
+    removido_motivo                   VARCHAR(500),
+    obligaciones_sri                  BOOLEAN NOT NULL DEFAULT FALSE,
+    castigo_obligaciones_financieras  BOOLEAN NOT NULL DEFAULT FALSE,
+    litigio_iess_biess                BOOLEAN NOT NULL DEFAULT FALSE,
+    procesado_corrupcion              BOOLEAN NOT NULL DEFAULT FALSE,
+    responsabilidad_contraloria       BOOLEAN NOT NULL DEFAULT FALSE,
+    registrado_uafe                   BOOLEAN NOT NULL DEFAULT FALSE
+);
+
 -- =========================================================
 -- Semilla: países (lista del requerimiento EF-12 1.2.1)
 -- =========================================================
