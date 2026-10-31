@@ -5,6 +5,8 @@ Proyecto de la asignatura *Frameworks de Programación Web*. Especificación com
 
 Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postulación).
 
+**Plan de implementación por fases:** [`docs/plan/`](docs/plan/README.md)
+
 ## Arquitectura
 
 | Capa | Tecnología |
@@ -78,8 +80,8 @@ Para reiniciar la base desde cero: `docker compose down -v && docker compose up 
 |--------|------------------|-----------------|------|
 | 1710034065 | 15/03/2020 | V4443V4444 | Afiliado, casado |
 | 0912345675 | 02/11/2019 | E1234I5678 | Jubilado |
-| 0102030405 | 08/07/2021 | A1111B2222 | Empleador |
-| 1798765432 | 10/01/2022 | C3333D4444 | Colombiano → postulación bloqueada |
+| 0102030400 | 08/07/2021 | A1111B2222 | Empleador |
+| 1754321980 | 10/01/2022 | C3333D4444 | Colombiano → postulación bloqueada |
 
 ## Flujo de trabajo en equipo
 
