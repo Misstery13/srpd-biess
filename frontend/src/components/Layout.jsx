@@ -1,6 +1,8 @@
-import { Link, Outlet } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
+import ErrorBoundary from './ErrorBoundary.jsx'
 
 export default function Layout() {
+  const { pathname } = useLocation()
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800">
       <header className="bg-emerald-800 text-white">
@@ -12,7 +14,10 @@ export default function Layout() {
         </div>
       </header>
       <main className="mx-auto max-w-4xl px-4 py-8">
-        <Outlet />
+        {/* key: al navegar a otra ruta se limpia el error */}
+        <ErrorBoundary key={pathname}>
+          <Outlet />
+        </ErrorBoundary>
       </main>
     </div>
   )
