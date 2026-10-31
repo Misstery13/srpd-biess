@@ -3,6 +3,7 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -12,7 +13,10 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const catalogoTTL = 24 * time.Hour
+const (
+	catalogoTTL    = 24 * time.Hour
+	redisOpTimeout = 300 * time.Millisecond
+)
 
 type CachedCatalogoRepository struct {
 	repo repository.CatalogoRepository
@@ -26,95 +30,69 @@ func NewCachedCatalogoRepository(repo repository.CatalogoRepository, rdb *redis.
 	}
 }
 
-func (c *CachedCatalogoRepository) ListarPaises(ctx context.Context) ([]model.Pais, error) {
-	key := "catalogo:paises"
+// obtenerConCache unifica la lectura con timeout corto, fallback a PostgreSQL
+// y evita reintentos de Set si Redis no responde (Bloqueante 2 y Menor 4).
+func obtenerConCache[T any](
+	ctx context.Context,
+	rdb *redis.Client,
+	key string,
+	cargar func(context.Context) ([]T, error),
+) ([]T, error) {
+	redisOperativo := false
 
-	if c.rdb != nil {
-		val, err := c.rdb.Get(ctx, key).Result()
+	if rdb != nil {
+		ctxGet, cancelGet := context.WithTimeout(ctx, redisOpTimeout)
+		val, err := rdb.Get(ctxGet, key).Result()
+		cancelGet()
+
 		if err == nil {
-			var paises []model.Pais
-			if err := json.Unmarshal([]byte(val), &paises); err == nil {
-				return paises, nil
+			var items []T
+			if err := json.Unmarshal([]byte(val), &items); err == nil {
+				return items, nil
 			}
+		} else if errors.Is(err, redis.Nil) {
+			// Clave no encontrada, pero Redis respondió con normalidad
+			redisOperativo = true
+		} else {
+			// Error de conexión, timeout o Redis caído
+			log.Printf("[CACHE WARN] Redis no disponible para GET %s: %v. Fallback a PostgreSQL.", key, err)
 		}
 	}
 
 	// Fallback a PostgreSQL
-	paises, err := c.repo.ListarPaises(ctx)
+	items, err := cargar(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Guardar en caché
-	if c.rdb != nil && len(paises) > 0 {
-		if data, err := json.Marshal(paises); err == nil {
-			if err := c.rdb.Set(ctx, key, data, catalogoTTL).Err(); err != nil {
+	// Solo intenta guardar en Redis si no falló por conexión
+	if rdb != nil && redisOperativo && len(items) > 0 {
+		if data, err := json.Marshal(items); err == nil {
+			ctxSet, cancelSet := context.WithTimeout(ctx, redisOpTimeout)
+			defer cancelSet()
+			if err := rdb.Set(ctxSet, key, data, catalogoTTL).Err(); err != nil {
 				log.Printf("[CACHE WARN] No se pudo cachear %s en Redis: %v", key, err)
 			}
 		}
 	}
 
-	return paises, nil
+	return items, nil
+}
+
+func (c *CachedCatalogoRepository) ListarPaises(ctx context.Context) ([]model.Pais, error) {
+	return obtenerConCache(ctx, c.rdb, "catalogo:paises", c.repo.ListarPaises)
 }
 
 func (c *CachedCatalogoRepository) ListarProvincias(ctx context.Context, paisID int) ([]model.Provincia, error) {
 	key := fmt.Sprintf("catalogo:provincias:%d", paisID)
-
-	if c.rdb != nil {
-		val, err := c.rdb.Get(ctx, key).Result()
-		if err == nil {
-			var provincias []model.Provincia
-			if err := json.Unmarshal([]byte(val), &provincias); err == nil {
-				return provincias, nil
-			}
-		}
-	}
-
-	// Fallback a PostgreSQL
-	provincias, err := c.repo.ListarProvincias(ctx, paisID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Guardar en caché
-	if c.rdb != nil && len(provincias) > 0 {
-		if data, err := json.Marshal(provincias); err == nil {
-			if err := c.rdb.Set(ctx, key, data, catalogoTTL).Err(); err != nil {
-				log.Printf("[CACHE WARN] No se pudo cachear %s en Redis: %v", key, err)
-			}
-		}
-	}
-
-	return provincias, nil
+	return obtenerConCache(ctx, c.rdb, key, func(ctx context.Context) ([]model.Provincia, error) {
+		return c.repo.ListarProvincias(ctx, paisID)
+	})
 }
 
 func (c *CachedCatalogoRepository) ListarCantones(ctx context.Context, provinciaID int) ([]model.Canton, error) {
 	key := fmt.Sprintf("catalogo:cantones:%d", provinciaID)
-
-	if c.rdb != nil {
-		val, err := c.rdb.Get(ctx, key).Result()
-		if err == nil {
-			var cantones []model.Canton
-			if err := json.Unmarshal([]byte(val), &cantones); err == nil {
-				return cantones, nil
-			}
-		}
-	}
-
-	// Fallback a PostgreSQL
-	cantones, err := c.repo.ListarCantones(ctx, provinciaID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Guardar en caché
-	if c.rdb != nil && len(cantones) > 0 {
-		if data, err := json.Marshal(cantones); err == nil {
-			if err := c.rdb.Set(ctx, key, data, catalogoTTL).Err(); err != nil {
-				log.Printf("[CACHE WARN] No se pudo cachear %s en Redis: %v", key, err)
-			}
-		}
-	}
-
-	return cantones, nil
+	return obtenerConCache(ctx, c.rdb, key, func(ctx context.Context) ([]model.Canton, error) {
+		return c.repo.ListarCantones(ctx, provinciaID)
+	})
 }

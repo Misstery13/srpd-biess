@@ -162,3 +162,43 @@ func TestErrorMiddleware_ErrorTipadoYErrorInterno(t *testing.T) {
 		t.Errorf("error 500 expuso detalles internos: %s", res500["error"])
 	}
 }
+func TestNoRouteYPanicRecovery(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(gin.CustomRecovery(func(c *gin.Context, recovered any) {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Ocurrió un error interno en el servidor."})
+	}))
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ruta no encontrada."})
+	})
+
+	r.GET("/panic", func(c *gin.Context) {
+		panic("error inesperado")
+	})
+
+	// Probar 404 NoRoute
+	w404 := httptest.NewRecorder()
+	req404, _ := http.NewRequest(http.MethodGet, "/ruta-inexistente", nil)
+	r.ServeHTTP(w404, req404)
+	if w404.Code != http.StatusNotFound {
+		t.Errorf("esperaba status 404, obtuvo %d", w404.Code)
+	}
+	var res404 map[string]string
+	_ = json.Unmarshal(w404.Body.Bytes(), &res404)
+	if res404["error"] != "Ruta no encontrada." {
+		t.Errorf("respuesta 404 incorrecta: %+v", res404)
+	}
+
+	// Probar 500 Panic recovery
+	wPanic := httptest.NewRecorder()
+	reqPanic, _ := http.NewRequest(http.MethodGet, "/panic", nil)
+	r.ServeHTTP(wPanic, reqPanic)
+	if wPanic.Code != http.StatusInternalServerError {
+		t.Errorf("esperaba status 500 tras panic, obtuvo %d", wPanic.Code)
+	}
+	var resPanic map[string]string
+	_ = json.Unmarshal(wPanic.Body.Bytes(), &resPanic)
+	if resPanic["error"] != "Ocurrió un error interno en el servidor." {
+		t.Errorf("respuesta 500 tras panic incorrecta: %+v", resPanic)
+	}
+}

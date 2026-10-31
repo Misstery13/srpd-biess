@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -64,13 +65,16 @@ func ValidateJWTSecret(secret string) error {
 }
 
 func (c *Config) PostgresDSN() string {
-	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		c.PostgresUser,
-		c.PostgresPassword,
-		c.PostgresHost,
-		c.PostgresPort,
-		c.PostgresDB,
-	)
+	u := &url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(c.PostgresUser, c.PostgresPassword),
+		Host:   fmt.Sprintf("%s:%s", c.PostgresHost, c.PostgresPort),
+		Path:   c.PostgresDB,
+	}
+	q := u.Query()
+	q.Set("sslmode", "disable")
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func getEnv(key, defaultVal string) string {

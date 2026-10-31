@@ -194,23 +194,24 @@ CREATE TABLE capacitaciones (
 
 CREATE TABLE inhabilidades (
     postulacion_id                    INT PRIMARY KEY REFERENCES postulaciones(id) ON DELETE CASCADE,
-    goce_derechos_politicos          BOOLEAN NOT NULL DEFAULT TRUE,
-    inhabilitado_comercio             BOOLEAN NOT NULL DEFAULT FALSE,
-    mora_obligaciones_estado         BOOLEAN NOT NULL DEFAULT FALSE,
-    vinculo_sistema_financiero        BOOLEAN NOT NULL DEFAULT FALSE,
-    funcionario_iess_biess            BOOLEAN NOT NULL DEFAULT FALSE,
-    interes_aseguradoras              BOOLEAN NOT NULL DEFAULT FALSE,
-    removido_control                  BOOLEAN NOT NULL DEFAULT FALSE,
+    goce_derechos_politicos          BOOLEAN NOT NULL,
+    inhabilitado_comercio             BOOLEAN NOT NULL,
+    mora_obligaciones_estado         BOOLEAN NOT NULL,
+    vinculo_sistema_financiero        BOOLEAN NOT NULL,
+    funcionario_iess_biess            BOOLEAN NOT NULL,
+    interes_aseguradoras              BOOLEAN NOT NULL,
+    removido_control                  BOOLEAN NOT NULL,
     removido_institucion              VARCHAR(200),
     removido_cargo                    VARCHAR(100),
     removido_fecha_fin                DATE,
     removido_motivo                   VARCHAR(500),
-    obligaciones_sri                  BOOLEAN NOT NULL DEFAULT FALSE,
-    castigo_obligaciones_financieras  BOOLEAN NOT NULL DEFAULT FALSE,
-    litigio_iess_biess                BOOLEAN NOT NULL DEFAULT FALSE,
-    procesado_corrupcion              BOOLEAN NOT NULL DEFAULT FALSE,
-    responsabilidad_contraloria       BOOLEAN NOT NULL DEFAULT FALSE,
-    registrado_uafe                   BOOLEAN NOT NULL DEFAULT FALSE
+    obligaciones_sri                  BOOLEAN NOT NULL,
+    castigo_obligaciones_financieras  BOOLEAN NOT NULL,
+    litigio_iess_biess                BOOLEAN NOT NULL,
+    procesado_corrupcion              BOOLEAN NOT NULL,
+    responsabilidad_contraloria       BOOLEAN NOT NULL,
+    registrado_uafe                   BOOLEAN NOT NULL,
+    CHECK (NOT removido_control OR (removido_institucion IS NOT NULL AND removido_motivo IS NOT NULL))
 );
 
 -- =========================================================

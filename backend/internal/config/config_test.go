@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -39,5 +40,19 @@ func TestValidateJWTSecret(t *testing.T) {
 				t.Errorf("ValidateJWTSecret() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
+	}
+}
+func TestConfig_PostgresDSN_PasswordEscaped(t *testing.T) {
+	cfg := &Config{
+		PostgresUser:     "biess",
+		PostgresPassword: "p@ssword:with/special#chars",
+		PostgresHost:     "localhost",
+		PostgresPort:     "5432",
+		PostgresDB:       "srpd_biess",
+	}
+
+	dsn := cfg.PostgresDSN()
+	if !strings.Contains(dsn, "p%40ssword%3Awith%2Fspecial%23chars") {
+		t.Errorf("PostgresDSN() no escapó correctamente la contraseña: %s", dsn)
 	}
 }

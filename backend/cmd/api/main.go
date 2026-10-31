@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/Misstery13/srpd-biess/backend/internal/cache"
@@ -45,11 +46,15 @@ func main() {
 	}
 	log.Println("Conexión exitosa a PostgreSQL")
 
-	// 3. Conexión a Redis
+	// 3. Conexión a Redis con timeouts cortos y sin reintentos (Bloqueante 2)
 	redisClient := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr,
-		Password: cfg.RedisPassword,
-		DB:       0,
+		Addr:         cfg.RedisAddr,
+		Password:     cfg.RedisPassword,
+		DB:           0,
+		DialTimeout:  200 * time.Millisecond,
+		ReadTimeout:  200 * time.Millisecond,
+		WriteTimeout: 200 * time.Millisecond,
+		MaxRetries:   0,
 	})
 	defer redisClient.Close()
 
@@ -65,12 +70,25 @@ func main() {
 	catalogoSvc := service.NewCatalogoService(cachedCatalogoRepo)
 	catalogoHdl := handler.NewCatalogoHandler(catalogoSvc)
 
-	// 5. Configuración de Gin
+	// 5. Configuración de Gin (Menor 1 y Menor 2)
+	if os.Getenv("GIN_MODE") == "release" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
 	router := gin.New()
+	_ = router.SetTrustedProxies(nil)
 	router.Use(gin.Logger())
-	router.Use(gin.Recovery())
+	router.Use(gin.CustomRecovery(func(c *gin.Context, recovered any) {
+		log.Printf("[PANIC RECUPERADO] %v", recovered)
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Ocurrió un error interno en el servidor."})
+	}))
 	router.Use(handler.SecurityHeadersMiddleware())
 	router.Use(handler.ErrorMiddleware())
+
+	// Ruta inexistente uniforme JSON (E1)
+	router.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ruta no encontrada."})
+	})
 
 	// Ruta de health check (mantenida para despliegue y monitoreo)
 	router.GET("/api/health", func(c *gin.Context) {
