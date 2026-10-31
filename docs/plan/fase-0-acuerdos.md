@@ -6,8 +6,8 @@
 
 - [ ] Leer `docs/requerimiento.pdf` (EF-11 y EF-12) y [requisitos implícitos](00-requisitos-implicitos.md).
 - [ ] Aprobar o cambiar el contrato de abajo.
-- [ ] Elegir framework: **Fiber** o **Gin** (uno solo).
-- [ ] Asignar quién lleva cada pista (D / B / F).
+- [x] Elegir framework: **Gin**. Usa `net/http` y `context.Context` nativos (compatibles con `pgx` y `go-redis`); Fiber (`fasthttp`) reutiliza memoria entre peticiones y obliga a copiar valores del contexto.
+- [x] Asignar quién lleva cada pista: D = @ginobermudez76, B = @SaidJuniorProgrammer, F = @Misstery13.
 - [ ] Clonar, `cp .env.example .env`, `docker compose up -d`, `npm run dev`, `go run ./cmd/api`.
 
 ## Contrato de API
@@ -22,11 +22,15 @@
 | GET | `/api/catalogos/paises` | — | 200 `[{id, nombre}]` |
 | GET | `/api/catalogos/paises/:id/provincias` | — | 200 `[{id, nombre}]` |
 | GET | `/api/catalogos/provincias/:id/cantones` | — | 200 `[{id, nombre}]` |
+| GET | `/api/periodo` | — | 200 `{abierto, inicio, fin}` (T2) |
 | GET | `/api/postulante/me` | — | 200 datos Registro Civil · 403 no ecuatoriano |
+| DELETE | `/api/postulante/me` | — | 204 supresión LOPDP (B4) |
 | POST | `/api/postulacion/validar-cargo` | `{cargo}` | 200 `{habilitado, mensaje}` |
 | GET | `/api/postulacion` | — | 200 postulación completa · 404 si no existe |
 | PUT | `/api/postulacion` | postulación completa | 200 `{codigo}` (transacción) |
 | POST | `/api/postulacion/documentos` | `multipart: archivo, tipo` | 201 `{ruta}` · 400 no es PDF / excede tamaño |
 | POST | `/api/postulacion/enviar` | `{acepta_terminos: true}` | 200 · 409 ya enviada |
 
-Rutas `/api/postulante/*` y `/api/postulacion/*` requieren JWT.
+Rutas `/api/postulante/*` y `/api/postulacion/*` requieren JWT **y** permiso del rol (R3): sin permiso → `403`. `PUT /api/postulacion`, `documentos` y `enviar` devuelven `403` fuera del período (T2).
+
+El JWT incluye `sub` (id del postulante) y `rol` (código del rol).
