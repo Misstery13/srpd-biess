@@ -7,6 +7,8 @@
 - [ ] Prueba completa desde un clon limpio: `docker compose down -v && docker compose up -d`.
 - [ ] README: prerrequisitos, ejecución, `.env.example`, usuarios de prueba (lo pide la entrega).
 - [ ] Revisar que no haya `console.log`, credenciales ni `.env` en el repo.
+- [ ] `npm audit` y `govulncheck ./...` sin vulnerabilidades altas (O6).
+- [ ] Checklist OWASP (O1–O8) y LOPDP (L1–L7) de [requisitos implícitos](00-requisitos-implicitos.md).
 - [ ] `git tag v1.0 && git push --tags`.
 
 ## Sustentación (10 min)

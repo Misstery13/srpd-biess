@@ -3,7 +3,7 @@
 **Fecha:** sábado 31 (mañana) · **Hito H1:** en el navegador, al elegir Ecuador → Pichincha aparecen sus cantones, y la segunda consulta sale de Redis (verificable con `redis-cli KEYS catalogo:*`).
 
 ## D — Datos
-- [ ] Agregar a `db/init.sql`: `UNIQUE (postulante_id)`, tablas `publicaciones`, `capacitaciones`, `inhabilidades` (P1, P5).
+- [ ] Agregar a `db/init.sql`: tablas `publicaciones`, `capacitaciones`, `inhabilidades` (P5).
 - [ ] Conexión a PostgreSQL con `pgxpool` y a Redis con `go-redis`.
 - [ ] `CatalogoRepository`: países, provincias por país, cantones por provincia.
 - [ ] Caché de catálogos con TTL 24 h y fallback a PostgreSQL.

@@ -59,14 +59,15 @@ CREATE TABLE postulantes (
 CREATE TABLE postulaciones (
     id            SERIAL PRIMARY KEY,
     codigo        VARCHAR(20) NOT NULL UNIQUE,  -- código de numeración único
-    postulante_id INT NOT NULL REFERENCES postulantes(id) ON DELETE CASCADE,
-    cargo         VARCHAR(20) CHECK (cargo IN ('AFILIADOS', 'JUBILADOS', 'EMPLEADORES')),
+    postulante_id INT NOT NULL UNIQUE REFERENCES postulantes(id) ON DELETE CASCADE,  -- una por postulante
+    cargo        VARCHAR(20) CHECK (cargo IN ('AFILIADOS', 'JUBILADOS', 'EMPLEADORES')),
     respaldo_org  BOOLEAN,
     org_nombre    VARCHAR(200),
     org_documento VARCHAR(255),                 -- ruta al PDF (máx 4 MB)
     estado        VARCHAR(20) NOT NULL DEFAULT 'BORRADOR'
                   CHECK (estado IN ('BORRADOR', 'ENVIADA', 'CERRADA')),
     acepta_terminos BOOLEAN NOT NULL DEFAULT FALSE,
+    fecha_consentimiento TIMESTAMPTZ,           -- LOPDP: cuándo aceptó
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -14,5 +14,9 @@ services:
     image: redis:7-alpine
     ports: ["6379:6379"]
 
+  mailpit:            # correos simulados: http://localhost:8025
+    image: axllent/mailpit:v1.21
+    ports: ["1025:1025", "8025:8025"]
+
 volumes:
   pgdata:
