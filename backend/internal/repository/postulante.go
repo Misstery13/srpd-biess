@@ -18,6 +18,8 @@ type PostulanteRepository interface {
 	ActualizarPassword(ctx context.Context, cedula, passwordHash string) error
 	BuscarRolPorCodigo(ctx context.Context, codigo string) (*model.Rol, error)
 	BuscarRolPorID(ctx context.Context, id int) (*model.Rol, error)
+	ObtenerDetalleRegistroCivil(ctx context.Context, postulanteID int) (*model.PostulantePerfil, error)
+	SuprimirPostulante(ctx context.Context, postulanteID int) error
 }
 
 type pgxPostulanteRepository struct {
@@ -140,4 +142,112 @@ func (r *pgxPostulanteRepository) BuscarRolPorID(ctx context.Context, id int) (*
 		return nil, fmt.Errorf("error al buscar rol por id: %w", err)
 	}
 	return &rol, nil
+}
+
+func (r *pgxPostulanteRepository) ObtenerDetalleRegistroCivil(ctx context.Context, postulanteID int) (*model.PostulantePerfil, error) {
+	query := `
+		SELECT 
+			p.id, p.email, rc.cedula, rc.nombres, rc.apellidos, rc.genero, rc.fecha_nacimiento,
+			rc.nacionalidad, rc.estado_civil, rc.conyuge_nombres, rc.conyuge_cedula,
+			rc.fecha_expedicion, rc.codigo_dactilar, rc.es_afiliado, rc.es_jubilado, rc.es_empleador
+		FROM postulantes p
+		JOIN registro_civil rc ON p.cedula = rc.cedula
+		WHERE p.id = $1 AND p.deleted_at IS NULL
+	`
+	var perfil model.PostulantePerfil
+	err := r.pool.QueryRow(ctx, query, postulanteID).Scan(
+		&perfil.PostulanteID,
+		&perfil.Email,
+		&perfil.Cedula,
+		&perfil.Nombres,
+		&perfil.Apellidos,
+		&perfil.Genero,
+		&perfil.FechaNacimiento,
+		&perfil.Nacionalidad,
+		&perfil.EstadoCivil,
+		&perfil.ConyugeNombres,
+		&perfil.ConyugeCedula,
+		&perfil.FechaExpedicion,
+		&perfil.CodigoDactilar,
+		&perfil.EsAfiliado,
+		&perfil.EsJubilado,
+		&perfil.EsEmpleador,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("error al obtener detalle de registro civil: %w", err)
+	}
+
+	return &perfil, nil
+}
+
+func (r *pgxPostulanteRepository) SuprimirPostulante(ctx context.Context, postulanteID int) error {
+	// B4: Supresión LOPDP en una sola transacción
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("error iniciando transaccion de supresion: %w", err)
+	}
+	defer tx.Rollback(ctx)
+
+	// 1. Soft delete y anonimización de datos de contacto del postulante
+	cmd, err := tx.Exec(ctx, `
+		UPDATE postulantes 
+		SET deleted_at = now(), 
+		    email = 'eliminado-' || id || '@anonimo.invalid', 
+		    password_hash = ''
+		WHERE id = $1 AND deleted_at IS NULL
+	`, postulanteID)
+	if err != nil {
+		return fmt.Errorf("error al anonimizar postulante: %w", err)
+	}
+	if cmd.RowsAffected() == 0 {
+		return errors.New("postulante no encontrado o ya eliminado")
+	}
+
+	// 2. Buscar si tiene postulación activa
+	var postulacionID int
+	err = tx.QueryRow(ctx, `
+		SELECT id FROM postulaciones 
+		WHERE postulante_id = $1 AND deleted_at IS NULL
+	`, postulanteID).Scan(&postulacionID)
+
+	if err == nil {
+		// Baja lógica de la postulación: conservar solo cédula, código y fechas (B4)
+		_, err = tx.Exec(ctx, `
+			UPDATE postulaciones 
+			SET deleted_at = now(), 
+			    cargo = NULL, 
+			    respaldo_org = NULL, 
+			    org_nombre = NULL, 
+			    org_documento = NULL, 
+			    updated_at = now() 
+			WHERE id = $1
+		`, postulacionID)
+		if err != nil {
+			return fmt.Errorf("error al dar de baja postulacion: %w", err)
+		}
+
+		// Borrado físico de tablas hijas (terceros, L6, B4)
+		tablas := []string{
+			"domicilios",
+			"familiares_iess",
+			"formacion_academica",
+			"experiencia_laboral",
+			"publicaciones",
+			"capacitaciones",
+			"inhabilidades",
+		}
+		for _, tabla := range tablas {
+			query := fmt.Sprintf("DELETE FROM %s WHERE postulacion_id = $1", tabla)
+			if _, err := tx.Exec(ctx, query, postulacionID); err != nil {
+				return fmt.Errorf("error al eliminar datos de %s: %w", tabla, err)
+			}
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return fmt.Errorf("error al consultar postulacion: %w", err)
+	}
+
+	return tx.Commit(ctx)
 }
