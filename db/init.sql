@@ -168,6 +168,52 @@ CREATE TABLE experiencia_laboral (
     CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio)
 );
 
+CREATE TABLE publicaciones (
+    id                  SERIAL PRIMARY KEY,
+    postulacion_id      INT NOT NULL REFERENCES postulaciones(id) ON DELETE CASCADE,
+    titulo              VARCHAR(250) NOT NULL,
+    tipo                VARCHAR(30)  NOT NULL CHECK (tipo IN ('PUBLICACION', 'INVESTIGACION')),
+    medio               VARCHAR(200) NOT NULL,
+    fecha               DATE NOT NULL,
+    relacion_profesional BOOLEAN NOT NULL DEFAULT FALSE,
+    documento           VARCHAR(255)
+);
+
+CREATE TABLE capacitaciones (
+    id             SERIAL PRIMARY KEY,
+    postulacion_id INT NOT NULL REFERENCES postulaciones(id) ON DELETE CASCADE,
+    tipo_evento    VARCHAR(20)  NOT NULL CHECK (tipo_evento IN ('CURSO', 'SEMINARIO', 'TALLER')),
+    nombre_evento  VARCHAR(200) NOT NULL,
+    institucion    VARCHAR(150) NOT NULL,
+    fecha_inicio   DATE NOT NULL,
+    fecha_fin      DATE NOT NULL,
+    horas          INT NOT NULL CHECK (horas > 0),
+    documento      VARCHAR(255),
+    CHECK (fecha_fin >= fecha_inicio)
+);
+
+CREATE TABLE inhabilidades (
+    postulacion_id                    INT PRIMARY KEY REFERENCES postulaciones(id) ON DELETE CASCADE,
+    goce_derechos_politicos          BOOLEAN NOT NULL,
+    inhabilitado_comercio             BOOLEAN NOT NULL,
+    mora_obligaciones_estado         BOOLEAN NOT NULL,
+    vinculo_sistema_financiero        BOOLEAN NOT NULL,
+    funcionario_iess_biess            BOOLEAN NOT NULL,
+    interes_aseguradoras              BOOLEAN NOT NULL,
+    removido_control                  BOOLEAN NOT NULL,
+    removido_institucion              VARCHAR(200),
+    removido_cargo                    VARCHAR(100),
+    removido_fecha_fin                DATE,
+    removido_motivo                   VARCHAR(500),
+    obligaciones_sri                  BOOLEAN NOT NULL,
+    castigo_obligaciones_financieras  BOOLEAN NOT NULL,
+    litigio_iess_biess                BOOLEAN NOT NULL,
+    procesado_corrupcion              BOOLEAN NOT NULL,
+    responsabilidad_contraloria       BOOLEAN NOT NULL,
+    registrado_uafe                   BOOLEAN NOT NULL,
+    CHECK (NOT removido_control OR (removido_institucion IS NOT NULL AND removido_motivo IS NOT NULL))
+);
+
 -- =========================================================
 -- Semilla: países (lista del requerimiento EF-12 1.2.1)
 -- =========================================================

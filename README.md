@@ -48,7 +48,7 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 
 ## Prerrequisitos
 
-- Go 1.23+
+- Go 1.26+
 - Node.js 20+ (probado con 24)
 - Docker + Docker Compose (para PostgreSQL 16 y Redis 7), o instalarlos localmente
 
