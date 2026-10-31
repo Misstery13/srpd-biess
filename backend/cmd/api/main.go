@@ -80,6 +80,11 @@ func main() {
 	authSvc := service.NewAuthService(rcRepo, postRepo, authCache, emailSvc, cfg.JWTSecret)
 	authHdl := handler.NewAuthHandler(authSvc)
 
+	// Periodo de postulación (T2)
+	periodoRepo := repository.NewPeriodoRepository(pgPool)
+	periodoSvc := service.NewPeriodoService(periodoRepo)
+	periodoHdl := handler.NewPeriodoHandler(periodoSvc)
+
 	// 5. Configuración de Gin (Menor 1 y Menor 2)
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
@@ -123,6 +128,9 @@ func main() {
 		authGroup.POST("/restablecer", authHdl.Restablecer)
 	}
 
+	// Periodo de postulación (Público - T2)
+	router.GET("/api/periodo", periodoHdl.ObtenerPeriodo)
+
 	// Rutas protegidas (Requieren JWT y validación RBAC - R3, R4)
 	postulanteGroup := router.Group("/api/postulante")
 	postulanteGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
@@ -134,6 +142,30 @@ func main() {
 				"postulante_id": postulanteID,
 				"rol":           c.GetString("rol"),
 			})
+		})
+	}
+
+	// Rutas protegidas de postulación (Requieren JWT y validación RBAC - R3, R4)
+	// Los handlers se implementarán en Fase 3 (EF-12). El middleware ya está activo.
+	postulacionGroup := router.Group("/api/postulacion")
+	postulacionGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
+	postulacionGroup.Use(handler.RBACMiddleware(permisoRepo))
+	{
+		// Stubs — serán reemplazados por handlers reales en Fase 3
+		postulacionGroup.POST("/validar-cargo", func(c *gin.Context) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
+		})
+		postulacionGroup.GET("", func(c *gin.Context) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
+		})
+		postulacionGroup.PUT("", func(c *gin.Context) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
+		})
+		postulacionGroup.POST("/documentos", func(c *gin.Context) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
+		})
+		postulacionGroup.POST("/enviar", func(c *gin.Context) {
+			c.JSON(http.StatusNotImplemented, gin.H{"error": "Endpoint en desarrollo."})
 		})
 	}
 
