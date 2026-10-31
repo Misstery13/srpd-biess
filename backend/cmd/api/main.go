@@ -65,10 +65,20 @@ func main() {
 	}
 
 	// 4. Inyección de dependencias (Repository -> Service -> Handler)
+	// Catálogos
 	catalogoRepo := repository.NewCatalogoRepository(pgPool)
 	cachedCatalogoRepo := cache.NewCachedCatalogoRepository(catalogoRepo, redisClient)
 	catalogoSvc := service.NewCatalogoService(cachedCatalogoRepo)
 	catalogoHdl := handler.NewCatalogoHandler(catalogoSvc)
+
+	// Autenticación (EF-11, Issue #8)
+	rcRepo := repository.NewRegistroCivilRepository(pgPool)
+	postRepo := repository.NewPostulanteRepository(pgPool)
+	permisoRepo := repository.NewPermisoRepository(pgPool)
+	authCache := cache.NewAuthCache(redisClient)
+	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort)
+	authSvc := service.NewAuthService(rcRepo, postRepo, authCache, emailSvc, cfg.JWTSecret)
+	authHdl := handler.NewAuthHandler(authSvc)
 
 	// 5. Configuración de Gin (Menor 1 y Menor 2)
 	if os.Getenv("GIN_MODE") == "release" {
@@ -95,12 +105,36 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// Endpoints de catálogos
+	// Endpoints de catálogos (Públicos)
 	catalogosGroup := router.Group("/api/catalogos")
 	{
 		catalogosGroup.GET("/paises", catalogoHdl.ListarPaises)
 		catalogosGroup.GET("/paises/:id/provincias", catalogoHdl.ListarProvincias)
 		catalogosGroup.GET("/provincias/:id/cantones", catalogoHdl.ListarCantones)
+	}
+
+	// Endpoints de autenticación (Públicos - EF-11)
+	authGroup := router.Group("/api/auth")
+	{
+		authGroup.POST("/verificar", authHdl.Verificar)
+		authGroup.POST("/registro", authHdl.Registrar)
+		authGroup.POST("/login", authHdl.Login)
+		authGroup.POST("/recuperar", authHdl.Recuperar)
+		authGroup.POST("/restablecer", authHdl.Restablecer)
+	}
+
+	// Rutas protegidas (Requieren JWT y validación RBAC - R3, R4)
+	postulanteGroup := router.Group("/api/postulante")
+	postulanteGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
+	postulanteGroup.Use(handler.RBACMiddleware(permisoRepo))
+	{
+		postulanteGroup.GET("/me", func(c *gin.Context) {
+			postulanteID := c.GetString("postulante_id")
+			c.JSON(http.StatusOK, gin.H{
+				"postulante_id": postulanteID,
+				"rol":           c.GetString("rol"),
+			})
+		})
 	}
 
 	log.Printf("Servidor API escuchando en el puerto :%s", cfg.AppPort)
