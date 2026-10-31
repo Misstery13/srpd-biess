@@ -65,7 +65,6 @@ func (m *mockPostulanteRepo) ObtenerDetalleRegistroCivil(ctx context.Context, po
 func (m *mockPostulanteRepo) SuprimirPostulante(ctx context.Context, postulanteID int) error {
 	return nil
 }
-}
 
 type mockAuthCache struct {
 	intentos    map[string]int64

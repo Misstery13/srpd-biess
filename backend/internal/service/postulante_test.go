@@ -30,6 +30,9 @@ func (m *mockPostulantePerfilRepo) ActualizarPassword(ctx context.Context, cedul
 func (m *mockPostulantePerfilRepo) BuscarRolPorCodigo(ctx context.Context, codigo string) (*model.Rol, error) {
 	return nil, nil
 }
+func (m *mockPostulantePerfilRepo) BuscarRolPorID(ctx context.Context, id int) (*model.Rol, error) {
+	return nil, nil
+}
 func (m *mockPostulantePerfilRepo) ObtenerDetalleRegistroCivil(ctx context.Context, postulanteID int) (*model.PostulantePerfil, error) {
 	return m.perfil, m.err
 }
