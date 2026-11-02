@@ -72,3 +72,4 @@ if postulante == nil {
 - `tiempo_usuario_existente_ms`: `avg=64.2ms  p(90)=68.1ms  p(95)=71.5ms`
 - `tiempo_usuario_inexistente_ms`: `avg=63.8ms  p(90)=67.9ms  p(95)=71.0ms`
 - **Diferencia observada:** $< 0.5$ ms (dentro del jitter normal de red local), neutralizando exitosamente el vector de enumeración por temporización.
+
