@@ -42,6 +42,16 @@ const desdeApi = (p) => ({ ...p, fecha: deFechaApi(p.fecha), documento: p.docume
 const aApi = (p) => ({ titulo: p.titulo.trim(), tipo: p.tipo, medio: p.medio.trim(), fecha: aFechaApi(p.fecha), relacion_profesional: p.relacion_profesional, documento: p.documento })
 
 // 1.7: publicaciones e investigaciones académicas
+// Lo que muestra cada tarjeta de la lista
+const resumenPublicaciones = (p) => (
+  <>
+    <p className="font-medium">{p.titulo}</p>
+    <p className="text-slate-500">
+      {nombreOpcion(TIPOS_PUBLICACION, p.tipo)} · {p.medio} · {fechaUI(p.fecha)} · Relación profesional: {p.relacion_profesional ? 'Si' : 'No'}
+    </p>
+  </>
+)
+
 export default function Publicaciones({ postulacion, guardar, soloLectura }) {
   const guardadas = postulacion?.publicaciones ?? []
   const [tiene, setTiene] = useState(guardadas.length ? true : null)
@@ -68,14 +78,7 @@ export default function Publicaciones({ postulacion, guardar, soloLectura }) {
           nuevo={nuevo}
           validar={validar}
           Formulario={FormPublicacion}
-          resumen={(p) => (
-            <>
-              <p className="font-medium">{p.titulo}</p>
-              <p className="text-slate-500">
-                {nombreOpcion(TIPOS_PUBLICACION, p.tipo)} · {p.medio} · {fechaUI(p.fecha)} · Relación profesional: {p.relacion_profesional ? 'Si' : 'No'}
-              </p>
-            </>
-          )}
+          resumen={resumenPublicaciones}
         />
       )}
     </Seccion>

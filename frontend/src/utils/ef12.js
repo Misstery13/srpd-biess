@@ -90,7 +90,7 @@ export const LIMITE_ORGANIZACION = 4 * MB
 export const LIMITE_GENERAL = 2 * MB
 
 // 1.1.7.1: se muestran los datos de la pareja si es casado/a o unión de hecho
-export const tienePareja = (estadoCivil = '') => /^CASAD|UNI[OÓ]N DE HECHO/i.test(estadoCivil)
+export const tienePareja = (estadoCivil = '') => /^(CASAD|UNI[OÓ]N DE HECHO)/i.test(estadoCivil)
 
 // La API (Go time.Time) usa RFC 3339; <input type="date"> usa YYYY-MM-DD
 export const aFechaApi = (d) => (d ? `${d}T00:00:00Z` : null)

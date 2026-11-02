@@ -1,7 +1,10 @@
 import { CONSENTIMIENTOS, INHABILIDADES, TIPOS_EVENTO, TIPOS_EXPERIENCIA, TIPOS_FORMACION, TIPOS_PUBLICACION, calcularDuracion, cargoPorCodigo, deFechaApi, textoDuracion, tienePareja } from '../../utils/ef12.js'
 import { fechaUI, nombreOpcion } from './comun.js'
 
-const siNo = (v) => (v == null ? '—' : v ? 'Si' : 'No')
+function siNo(v) {
+  if (v == null) return '—'
+  return v ? 'Si' : 'No'
+}
 
 function Bloque({ titulo, filas }) {
   return (
@@ -9,8 +12,8 @@ function Bloque({ titulo, filas }) {
       <h2 className="mb-1 border-b border-slate-400 text-sm font-bold uppercase">{titulo}</h2>
       <table className="w-full text-xs">
         <tbody>
-          {filas.map(([k, v], i) => (
-            <tr key={i} className="align-top">
+          {filas.map(([k, v]) => (
+            <tr key={`${k}|${v}`} className="align-top">
               <th className="w-1/3 py-0.5 pr-2 text-left font-medium">{k}</th>
               <td className="py-0.5">{v || '—'}</td>
             </tr>
@@ -88,7 +91,7 @@ export default function Impresion({ perfil, postulacion: p }) {
 
       <section className="mb-6 break-inside-avoid text-xs">
         {CONSENTIMIENTOS.map((t, i) => (
-          <p key={i} className="mb-1">
+          <p key={t} className="mb-1">
             {i + 1}. {t}
           </p>
         ))}

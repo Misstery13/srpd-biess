@@ -1,6 +1,14 @@
 import { useState } from 'react'
 import { BotonLinea } from './Formulario.jsx'
 
+// Clave estable por ítem para React (los ítems de la API no traen id propio)
+const ids = new WeakMap()
+let siguiente = 0
+function idDe(item) {
+  if (!ids.has(item)) ids.set(item, ++siguiente)
+  return ids.get(item)
+}
+
 // Lista con "Agregar", "Editar" y "Eliminar" (EF-12: familiares, formación, experiencia, publicaciones, capacitación).
 // Los cambios quedan en la lista local; la sección los persiste con "Guardar información".
 //   items / onChange: la lista
@@ -25,7 +33,7 @@ export default function ListaEditable({ nombre, items, onChange, nuevo, validar,
       {items.length === 0 && !edicion && <p className="text-sm text-slate-500">No ha registrado {nombre}.</p>}
       <ul className="flex flex-col gap-2">
         {items.map((item, i) => (
-          <li key={i} className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-slate-200 p-3">
+          <li key={idDe(item)} className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-slate-200 p-3">
             <div className="min-w-0 flex-1 text-sm">{resumen(item)}</div>
             <div className="flex gap-2">
               <BotonLinea onClick={() => abrir(i)} disabled={!!edicion}>

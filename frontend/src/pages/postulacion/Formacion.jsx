@@ -48,6 +48,17 @@ const aApi = (f) => ({
 })
 
 // 1.5: formación académica
+// Lo que muestra cada tarjeta de la lista
+const resumenFormacion = (f) => (
+  <>
+    <p className="font-medium">{f.titulo}</p>
+    <p className="text-slate-500">
+      {f.nivel} · {f.institucion} ({nombreOpcion(TIPOS_FORMACION, f.tipo)}) · {f.area}
+      {f.documento && ' · ✓ PDF'}
+    </p>
+  </>
+)
+
 export default function Formacion({ postulacion, guardar, soloLectura }) {
   const [lista, setLista] = useState(() => (postulacion?.formacion ?? []).map(desdeApi))
   const onGuardar = () => guardar({ formacion: lista.map(aApi) })
@@ -61,15 +72,7 @@ export default function Formacion({ postulacion, guardar, soloLectura }) {
         nuevo={nuevo}
         validar={validar}
         Formulario={FormTitulo}
-        resumen={(f) => (
-          <>
-            <p className="font-medium">{f.titulo}</p>
-            <p className="text-slate-500">
-              {f.nivel} · {f.institucion} ({nombreOpcion(TIPOS_FORMACION, f.tipo)}) · {f.area}
-              {f.documento && ' · ✓ PDF'}
-            </p>
-          </>
-        )}
+        resumen={resumenFormacion}
       />
     </Seccion>
   )

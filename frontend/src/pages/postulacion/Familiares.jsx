@@ -30,6 +30,18 @@ function FormFamiliar({ valor, onChange, errores }) {
 const limpio = (f) => ({ nombres: f.nombres.trim(), parentesco: f.parentesco, institucion: f.institucion, area: f.area?.trim() || null, cargo: f.cargo?.trim() || null })
 
 // 1.3: información adicional — familiares en el IESS o BIESS
+// Lo que muestra cada tarjeta de la lista
+const resumenFamiliares = (f) => (
+  <>
+    <p className="font-medium">{f.nombres}</p>
+    <p className="text-slate-500">
+      {f.parentesco} · {f.institucion}
+      {f.area && ` · ${f.area}`}
+      {f.cargo && ` · ${f.cargo}`}
+    </p>
+  </>
+)
+
 export default function Familiares({ postulacion, guardar, soloLectura }) {
   const guardados = postulacion?.familiares ?? []
   const [tiene, setTiene] = useState(guardados.length ? true : null)
@@ -62,16 +74,7 @@ export default function Familiares({ postulacion, guardar, soloLectura }) {
           nuevo={nuevo}
           validar={validar}
           Formulario={FormFamiliar}
-          resumen={(f) => (
-            <>
-              <p className="font-medium">{f.nombres}</p>
-              <p className="text-slate-500">
-                {f.parentesco} · {f.institucion}
-                {f.area && ` · ${f.area}`}
-                {f.cargo && ` · ${f.cargo}`}
-              </p>
-            </>
-          )}
+          resumen={resumenFamiliares}
         />
       )}
     </Seccion>

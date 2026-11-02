@@ -70,7 +70,7 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
             <div className="flex flex-col gap-3" data-consentimiento>
               <p className="text-sm text-slate-600">Lea y acepte cada declaración para poder enviar su postulación:</p>
               {CONSENTIMIENTOS.map((texto, i) => (
-                <label key={i} className="flex items-start gap-3 rounded-md border border-slate-200 p-3 text-sm">
+                <label key={texto} className="flex items-start gap-3 rounded-md border border-slate-200 p-3 text-sm">
                   <input
                     type="checkbox"
                     className="mt-1"

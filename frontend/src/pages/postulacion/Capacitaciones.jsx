@@ -50,6 +50,16 @@ const aApi = (c) => ({
 })
 
 // 1.8: capacitación
+// Lo que muestra cada tarjeta de la lista
+const resumenCapacitaciones = (c) => (
+  <>
+    <p className="font-medium">{c.nombre_evento}</p>
+    <p className="text-slate-500">
+      {nombreOpcion(TIPOS_EVENTO, c.tipo_evento)} · {c.institucion} · {fechaUI(c.fecha_inicio)} – {fechaUI(c.fecha_fin)} · {c.horas} h
+    </p>
+  </>
+)
+
 export default function Capacitaciones({ postulacion, guardar, soloLectura }) {
   const [lista, setLista] = useState(() => (postulacion?.capacitaciones ?? []).map(desdeApi))
   const onGuardar = () => guardar({ capacitaciones: lista.map(aApi) })
@@ -63,14 +73,7 @@ export default function Capacitaciones({ postulacion, guardar, soloLectura }) {
         nuevo={nuevo}
         validar={validar}
         Formulario={FormCapacitacion}
-        resumen={(c) => (
-          <>
-            <p className="font-medium">{c.nombre_evento}</p>
-            <p className="text-slate-500">
-              {nombreOpcion(TIPOS_EVENTO, c.tipo_evento)} · {c.institucion} · {fechaUI(c.fecha_inicio)} – {fechaUI(c.fecha_fin)} · {c.horas} h
-            </p>
-          </>
-        )}
+        resumen={resumenCapacitaciones}
       />
     </Seccion>
   )

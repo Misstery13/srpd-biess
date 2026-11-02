@@ -3,6 +3,7 @@
 // Por defecto contra VITE_MOCK=true. Con E2E_REAL=1 usa el backend real (BD recién creada):
 // registra e ingresa a cada persona por la API, y E2E_CERRAR=<comando> cierra el período para el escenario D.
 import { execSync } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -59,12 +60,14 @@ async function subir(sel, archivo) {
 }
 const real = process.env.E2E_REAL === '1'
 const fechas = { 1710034065: '2020-03-15', '0912345675': '2019-11-02', 1754321980: '2022-01-10' }
+// Contraseña aleatoria por corrida (letras y números, ≥ 8 caracteres)
+const CLAVE = process.env.E2E_CLAVE ?? `E2e-${randomUUID()}`
 async function post(ruta, cuerpo) {
   const r = await fetch(url('/api' + ruta), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
   return r.json().catch(() => ({}))
 }
 async function tokenReal(cedula) {
-  const cuenta = { cedula, password: 'Clave1234' }
+  const cuenta = { cedula, password: CLAVE }
   const { token } = await post('/auth/login', cuenta)
   if (token) return token
   await post('/auth/verificar', { cedula, fecha_expedicion: fechas[cedula] })
@@ -210,7 +213,8 @@ ok((await js(`[...document.querySelectorAll('${I} input[type=radio]')].every(r =
 await boton(I, 'Guardar información')
 ok((await cuenta(`${I} [role=alert]`)) === 14, '1.9 las 13 preguntas son obligatorias')
 const claves = await js(`[...new Set([...document.querySelectorAll('${I} input[type=radio]')].map(r => r.name))]`)
-for (const c of claves) await js(`document.querySelectorAll('input[name="${c}"]')[${c === 'goce_derechos_politicos' || c === 'removido_control' ? 0 : 1}].click()`)
+// Sí en goce de derechos y en removido; No en el resto
+await js(`${JSON.stringify(claves)}.forEach(c => document.querySelectorAll('input[name="' + c + '"]')[c === 'goce_derechos_politicos' || c === 'removido_control' ? 0 : 1].click())`)
 await esperar(200)
 await boton(I, 'Guardar información')
 ok(!!(await texto('#removido_institucion-error')) && !!(await texto('#removido_motivo-error')), '1.9.7.1 removido: institución y motivo obligatorios')
@@ -227,14 +231,14 @@ await boton(V, 'Guardar Postulación', 600)
 ok((await cuenta(`${V} [data-consentimiento] input[type=checkbox]`)) === 5, '1.10.1 los 5 textos de consentimiento')
 ok((await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].every(c => !c.checked)`)), 'L1 casillas sin marcar por defecto')
 ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 "Enviar Postulación" deshabilitado sin aceptar')
-for (let i = 0; i < 4; i++) await js(`document.querySelectorAll('${V} [data-consentimiento] input')[${i}].click()`)
+await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].slice(0, 4).forEach(c => c.click())`)
 ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 sigue deshabilitado con 4 de 5')
 await js(`document.querySelectorAll('${V} [data-consentimiento] input')[4].click()`)
 await esperar(100)
 await clic(`${V} [data-enviar]`, 700)
 ok((await texto(`${V} output`))?.includes('BIESS-2026-000001 fue enviada'), '1.10.3 postulación enviada')
 ok(await js(`document.querySelector('[data-seccion=domicilio] fieldset').disabled`), 'P3 enviada: formulario en solo lectura')
-ok(await existe('article.print\\:block'), '1.10.2 formulario imprimible con firma, nombres y cédula')
+ok(await existe(String.raw`article.print\:block`), '1.10.2 formulario imprimible con firma, nombres y cédula')
 ok((await texto('article'))?.includes('Firma del postulante') && (await texto('article'))?.includes('C.I. 1710034065'), '1.10.2 firma, nombres y cédula en el impreso')
 
 // Eliminar cuenta (L5)

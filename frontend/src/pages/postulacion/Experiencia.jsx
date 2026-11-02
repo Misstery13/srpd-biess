@@ -41,7 +41,7 @@ function FormExperiencia({ valor, onChange, errores }) {
         <Campo id="exp-fin" etiqueta="Fecha finalización" type="date" max={hoy()} disabled={valor.actual} value={valor.actual ? '' : valor.fecha_fin} onChange={set('fecha_fin')} error={errores.fecha_fin} />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={valor.actual} onChange={(e) => onChange({ ...valor, actual: e.target.checked, fecha_fin: '' })} />
-          Trabajo actual
+          <span>Trabajo actual</span>
         </label>
       </div>
       <div className="sm:col-span-2">
@@ -77,6 +77,21 @@ const aApi = (f) => ({
 })
 
 // 1.6: experiencia profesional, con la calculadora de tiempo por experiencia (años, meses y días)
+// Lo que muestra cada tarjeta de la lista
+const resumenExperiencia = (f) => (
+  <>
+    <p className="font-medium">
+      {f.cargo} · {f.institucion}
+    </p>
+    <p className="text-slate-500">
+      {nombreOpcion(TIPOS_EXPERIENCIA, f.tipo)} · {f.area} · {fechaUI(f.fecha_inicio)} – {f.actual ? 'actualidad' : fechaUI(f.fecha_fin)}
+    </p>
+    <p data-duracion>
+      Tiempo: <strong>{textoDuracion(duracion(f))}</strong>
+    </p>
+  </>
+)
+
 export default function Experiencia({ postulacion, guardar, soloLectura }) {
   const [lista, setLista] = useState(() => (postulacion?.experiencia ?? []).map(desdeApi))
   const onGuardar = () => guardar({ experiencia: lista.map(aApi) })
@@ -91,19 +106,7 @@ export default function Experiencia({ postulacion, guardar, soloLectura }) {
         nuevo={nuevo}
         validar={validar}
         Formulario={FormExperiencia}
-        resumen={(f) => (
-          <>
-            <p className="font-medium">
-              {f.cargo} · {f.institucion}
-            </p>
-            <p className="text-slate-500">
-              {nombreOpcion(TIPOS_EXPERIENCIA, f.tipo)} · {f.area} · {fechaUI(f.fecha_inicio)} – {f.actual ? 'actualidad' : fechaUI(f.fecha_fin)}
-            </p>
-            <p data-duracion>
-              Tiempo: <strong>{textoDuracion(duracion(f))}</strong>
-            </p>
-          </>
-        )}
+        resumen={resumenExperiencia}
       />
       {total && (
         <p className="text-sm" data-total>
