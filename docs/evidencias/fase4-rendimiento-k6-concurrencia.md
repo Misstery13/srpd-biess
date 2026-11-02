@@ -58,3 +58,4 @@ Se ejecutó un escenario de estrés progresivo simulando el tráfico pico durant
    - No se produjo ningún pánico, bloqueo mutuo (deadlock) ni caída del microservicio en Go.
 3. **Atomicidad Concurrente de Redis:**
    - Las operaciones atómicas `INCR` en pipelines para el rate limiting gestionaron las peticiones paralelas de los 70 VUs sin inconsistencias ni carreras de datos (race conditions).
+

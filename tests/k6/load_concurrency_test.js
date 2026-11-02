@@ -106,3 +106,4 @@ export default function () {
   // Pequeño jitter entre 50ms y 150ms para simular comportamiento humano y tráfico asíncrono
   sleep(0.05 + Math.random() * 0.1);
 }
+
