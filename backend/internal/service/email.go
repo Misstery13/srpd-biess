@@ -229,7 +229,7 @@ func renderFormularioHTML(codigo string, p *model.PostulacionCompleta, perfil *m
 		sb.WriteString(fmt.Sprintf("<li><strong>Respaldo de Organización:</strong> %s</li>\n", respaldoTexto))
 		if p.RespaldoOrg != nil && *p.RespaldoOrg {
 			sb.WriteString(fmt.Sprintf("<li><strong>Nombre de Organización:</strong> %s</li>\n", escPtr(p.OrgNombre, "N/A")))
-			sb.WriteString(fmt.Sprintf("<li><strong>Documento de Respaldo:</strong> %s</li>\n", escPtr(p.OrgDocumento, "N/A")))
+			sb.WriteString(fmt.Sprintf("<li><strong>Documento de Respaldo:</strong> %s</li>\n", adjunto(p.OrgDocumento)))
 		}
 		sb.WriteString("</ul>\n")
 
@@ -293,7 +293,7 @@ func renderFormularioHTML(codigo string, p *model.PostulacionCompleta, perfil *m
 				}
 				sb.WriteString(fmt.Sprintf("<li><strong>%s</strong>: %s — %s (%s) | Área: %s | Reg. SENESCYT: %s (Fecha: %s) | Respaldo: %s</li>\n",
 					esc(fa.Nivel), esc(fa.Titulo), esc(fa.Institucion), tipoFormacionLegible(fa.Tipo), esc(fa.Area),
-					escPtr(fa.SenescytNumero, "N/A"), senFecha, escPtr(fa.Documento, "N/A")))
+					escPtr(fa.SenescytNumero, "N/A"), senFecha, adjunto(fa.Documento)))
 			}
 			sb.WriteString("</ul>\n")
 		} else {
@@ -312,7 +312,7 @@ func renderFormularioHTML(codigo string, p *model.PostulacionCompleta, perfil *m
 				sb.WriteString(fmt.Sprintf("<li><strong>[%s] %s</strong> en %s | Período: %s a %s (Duración: %s) | Área: %s<br>Funciones: %s<br>Respaldo: %s</li>\n",
 					tipoExperienciaLegible(el.Tipo), esc(el.Cargo), esc(el.Institucion),
 					formatFecha(el.FechaInicio), formatFechaFin(el.FechaFin), esc(duracion), esc(el.Area),
-					escPtr(el.Funciones, "N/A"), escPtr(el.Documento, "N/A")))
+					escPtr(el.Funciones, "N/A"), adjunto(el.Documento)))
 			}
 			sb.WriteString("</ul>\n")
 		} else {
@@ -326,7 +326,7 @@ func renderFormularioHTML(codigo string, p *model.PostulacionCompleta, perfil *m
 			for _, pb := range p.Publicaciones {
 				sb.WriteString(fmt.Sprintf("<li><strong>%s</strong>: &ldquo;%s&rdquo; | Medio: %s | Fecha: %s | Relación con el cargo: %s | Respaldo: %s</li>\n",
 					tipoPublicacionLegible(pb.Tipo), esc(pb.Titulo), esc(pb.Medio), formatFecha(pb.Fecha),
-					siNoVal(pb.RelacionProfesional), escPtr(pb.Documento, "N/A")))
+					siNoVal(pb.RelacionProfesional), adjunto(pb.Documento)))
 			}
 			sb.WriteString("</ul>\n")
 		} else {
@@ -340,7 +340,7 @@ func renderFormularioHTML(codigo string, p *model.PostulacionCompleta, perfil *m
 			for _, cp := range p.Capacitaciones {
 				sb.WriteString(fmt.Sprintf("<li><strong>%s: %s</strong> — %s | Período: %s al %s | Horas: %d | Respaldo: %s</li>\n",
 					tipoEventoLegible(cp.TipoEvento), esc(cp.NombreEvento), esc(cp.Institucion),
-					formatFecha(cp.FechaInicio), formatFecha(cp.FechaFin), cp.Horas, escPtr(cp.Documento, "N/A")))
+					formatFecha(cp.FechaInicio), formatFecha(cp.FechaFin), cp.Horas, adjunto(cp.Documento)))
 			}
 			sb.WriteString("</ul>\n")
 		} else {
@@ -391,13 +391,24 @@ func renderFormularioHTML(codigo string, p *model.PostulacionCompleta, perfil *m
 		sb.WriteString("<li>El presente formulario, debe ser impreso y con firma manuscrita, entregado junto con los requisitos solicitados, en el lugar, fecha y horario establecido por el Instituto Ecuatoriano de Seguridad Social. [ACEPTADO]</li>\n")
 		sb.WriteString("</ol>\n")
 
-		fechaConsentimiento := time.Now().Format("02/01/2006 15:04:05")
+		fechaConsentimiento := time.Now().In(zonaEcuador).Format("02/01/2006 15:04:05")
 		if p.FechaConsentimiento != nil {
-			fechaConsentimiento = p.FechaConsentimiento.Format("02/01/2006 15:04:05")
+			fechaConsentimiento = p.FechaConsentimiento.In(zonaEcuador).Format("02/01/2006 15:04:05")
 		}
 		sb.WriteString(fmt.Sprintf("<p><strong>Fecha y hora del consentimiento:</strong> %s</p>\n", fechaConsentimiento))
 	}
 
 	sb.WriteString("<p>Atentamente,<br><strong>Comisión Técnica del Concurso BIESS</strong></p>")
 	return sb.String()
+}
+
+// zonaEcuador: hora continental de Ecuador (UTC-5, sin horario de verano); FixedZone no depende de tzdata en la imagen
+var zonaEcuador = time.FixedZone("ECT", -5*60*60)
+
+// adjunto no expone la ruta interna del archivo en el correo
+func adjunto(d *string) string {
+	if d == nil || strings.TrimSpace(*d) == "" {
+		return "No adjunto"
+	}
+	return "Documento cargado"
 }

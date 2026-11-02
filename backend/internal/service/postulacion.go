@@ -646,7 +646,9 @@ func (s *PostulacionService) EnviarPostulacion(ctx context.Context, postulanteID
 
 // Helper para calcular duración en años, meses y días (V7)
 func CalcularDuracion(inicio time.Time, fin *time.Time) string {
-	hasta := time.Now()
+	// "Hoy" según la fecha de Ecuador, a medianoche UTC como las fechas guardadas
+	n := time.Now().In(zonaEcuador)
+	hasta := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
 	if fin != nil {
 		hasta = *fin
 	}

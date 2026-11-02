@@ -600,3 +600,32 @@ func TestEmailService_EscapeHTML_InhabilidadesReales_FormularioCompleto(t *testi
 		t.Errorf("debe incluir los consentimientos de 1.10.1 en el correo")
 	}
 }
+
+// El correo no expone rutas internas y muestra la hora del consentimiento en hora de Ecuador
+func TestRenderFormularioHTML_RutasYHoraEcuador(t *testing.T) {
+	doc := "uploads/3/11111111-2222-3333-4444-555555555555.pdf"
+	consent := time.Date(2026, 11, 2, 1, 38, 0, 0, time.UTC) // 01/11 20:38 en Ecuador
+	respaldo := true
+	p := &model.PostulacionCompleta{
+		PostulacionHeader: model.PostulacionHeader{RespaldoOrg: &respaldo, OrgDocumento: &doc, FechaConsentimiento: &consent},
+		Formacion:         []model.FormacionAcademica{{Documento: &doc}},
+	}
+	out := renderFormularioHTML("BIESS-2026-000001", p, nil)
+	if strings.Contains(out, "uploads/") {
+		t.Error("el correo expone la ruta interna del documento")
+	}
+	if !strings.Contains(out, "Documento cargado") {
+		t.Error("falta el texto 'Documento cargado'")
+	}
+	if !strings.Contains(out, "01/11/2026 20:38:00") {
+		t.Error("la hora del consentimiento no está en hora de Ecuador")
+	}
+}
+
+func TestCalcularDuracion_TrabajoActualUsaFechaEcuador(t *testing.T) {
+	n := time.Now().In(zonaEcuador)
+	hoy := time.Date(n.Year(), n.Month(), n.Day(), 0, 0, 0, 0, time.UTC)
+	if got := CalcularDuracion(hoy.AddDate(0, 0, -1), nil); got != CalcularDuracion(hoy.AddDate(0, 0, -1), &hoy) {
+		t.Errorf("trabajo actual debe medir hasta la fecha de Ecuador, got %q", got)
+	}
+}
