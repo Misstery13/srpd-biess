@@ -1,5 +1,8 @@
-// Prueba E2E de EF-12 (formulario de postulación) con VITE_MOCK=true.
+// Prueba E2E de EF-12 (formulario de postulación).
 // Uso: node e2e-postulacion.mjs <ruta-chrome> <url base, p. ej. http://localhost:5173>
+// Por defecto contra VITE_MOCK=true. Con E2E_REAL=1 usa el backend real (BD recién creada):
+// registra e ingresa a cada persona por la API, y E2E_CERRAR=<comando> cierra el período para el escenario D.
+import { execSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -54,9 +57,24 @@ async function subir(sel, archivo) {
   await cdp('DOM.setFileInputFiles', { nodeId, files: [archivo] })
   await esperar(600)
 }
+const real = process.env.E2E_REAL === '1'
+const fechas = { 1710034065: '2020-03-15', '0912345675': '2019-11-02', 1754321980: '2022-01-10' }
+async function post(ruta, cuerpo) {
+  const r = await fetch(url('/api' + ruta), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cuerpo) })
+  return r.json().catch(() => ({}))
+}
+async function tokenReal(cedula) {
+  const cuenta = { cedula, password: 'Clave1234' }
+  const { token } = await post('/auth/login', cuenta)
+  if (token) return token
+  await post('/auth/verificar', { cedula, fecha_expedicion: fechas[cedula] })
+  await post('/auth/registro', { ...cuenta, email: `${cedula}@example.com` })
+  return (await post('/auth/login', cuenta)).token
+}
 async function sesion(cedula, extra = '') {
+  const token = real ? await tokenReal(cedula) : `mock.${cedula}`
   await ir(url('/'), 300)
-  await js(`sessionStorage.clear(); sessionStorage.setItem('token', 'mock.${cedula}'); ${extra}`)
+  await js(`sessionStorage.clear(); sessionStorage.setItem('token', '${token}'); ${extra}`)
   await ir(url('/postulacion'), 1500)
 }
 
@@ -242,6 +260,7 @@ ok(
 )
 
 // ===== D. Período cerrado (T2) =====
+if (real) execSync(process.env.E2E_CERRAR, { stdio: 'inherit' })
 await sesion('0912345675', `sessionStorage.setItem('mock:periodo', 'cerrado')`)
 ok((await texto('[role=alert]'))?.includes('El período de postulación no está habilitado'), 'T2 aviso de período cerrado')
 ok(await js(`document.querySelector('[data-seccion=domicilio] fieldset').disabled`), 'T2 formulario en solo lectura')
