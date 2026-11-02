@@ -46,6 +46,7 @@ export async function restablecer(datos) {
 const registroCivil = {
   1710034065: { nombres: 'JUAN CARLOS', fecha_expedicion: '2020-03-15', codigo_dactilar: 'V4443V4444' },
   '0912345675': { nombres: 'ANA LUCÍA', fecha_expedicion: '2019-11-02', codigo_dactilar: 'E1234I5678' },
+  1754321980: { nombres: 'CARLOS', fecha_expedicion: '2022-01-10', codigo_dactilar: 'C3333D4444' },
 }
 const fallos = {}
 const cuentas = {}
