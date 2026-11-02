@@ -22,7 +22,7 @@ type CachedPeriodoRepository struct {
 }
 
 // NewCachedPeriodoRepository decora el repositorio de período con caché Redis
-// para evitar consultas constantes a PostgreSQL (Issue #24).
+// para optimizar el acceso recurrente y evitar sobrecarga en PostgreSQL (Issue #24).
 func NewCachedPeriodoRepository(repo repository.PeriodoRepository, rdb *redis.Client) repository.PeriodoRepository {
 	return &CachedPeriodoRepository{
 		repo: repo,
@@ -31,36 +31,54 @@ func NewCachedPeriodoRepository(repo repository.PeriodoRepository, rdb *redis.Cl
 }
 
 func (c *CachedPeriodoRepository) ObtenerPeriodoActivo(ctx context.Context) (*repository.PeriodoRow, error) {
-	if c.rdb != nil {
-		ctxGet, cancel := context.WithTimeout(ctx, redisOpTimeout)
-		val, err := c.rdb.Get(ctxGet, PeriodoCacheKey).Result()
-		cancel()
-
-		if err == nil {
-			var row repository.PeriodoRow
-			if err := json.Unmarshal([]byte(val), &row); err == nil {
-				return &row, nil
-			}
-		} else if !errors.Is(err, redis.Nil) {
-			log.Printf("[CACHE WARN] Redis no disponible para GET %s: %v. Fallback a PostgreSQL.", PeriodoCacheKey, err)
-		}
+	if cached := c.obtenerDeCache(ctx); cached != nil {
+		return cached, nil
 	}
 
-	// Fallback a PostgreSQL
 	row, err := c.repo.ObtenerPeriodoActivo(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	// Guardar en Redis
-	if c.rdb != nil && row != nil {
-		if data, err := json.Marshal(row); err == nil {
-			ctxSet, cancel := context.WithTimeout(ctx, redisOpTimeout)
-			defer cancel()
-			_ = c.rdb.Set(ctxSet, PeriodoCacheKey, data, PeriodoTTL).Err()
-		}
-	}
-
+	c.guardarEnCache(ctx, row)
 	return row, nil
 }
 
+func (c *CachedPeriodoRepository) obtenerDeCache(ctx context.Context) *repository.PeriodoRow {
+	if c.rdb == nil {
+		return nil
+	}
+
+	ctxGet, cancel := context.WithTimeout(ctx, redisOpTimeout)
+	defer cancel()
+
+	val, err := c.rdb.Get(ctxGet, PeriodoCacheKey).Result()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			log.Printf("[CACHE WARN] Redis GET %s fallo: %v. Fallback a BD.", PeriodoCacheKey, err)
+		}
+		return nil
+	}
+
+	var row repository.PeriodoRow
+	if err := json.Unmarshal([]byte(val), &row); err != nil {
+		return nil
+	}
+	return &row
+}
+
+func (c *CachedPeriodoRepository) guardarEnCache(ctx context.Context, row *repository.PeriodoRow) {
+	if c.rdb == nil || row == nil {
+		return
+	}
+
+	data, err := json.Marshal(row)
+	if err != nil {
+		return
+	}
+
+	ctxSet, cancel := context.WithTimeout(ctx, redisOpTimeout)
+	defer cancel()
+
+	_ = c.rdb.Set(ctxSet, PeriodoCacheKey, data, PeriodoTTL).Err()
+}

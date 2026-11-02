@@ -38,15 +38,14 @@ type redisAuthCache struct {
 
 // NewAuthCache crea una instancia de caché respaldada por Redis con soporte para
 // cifrado AES-256-GCM y pseudonimización de identificadores sensibles (Issue #24).
-func NewAuthCache(rdb *redis.Client, secrets ...string) AuthCache {
-	sec := "srpd-biess-secure-cache-secret-default-key-2026"
-	if len(secrets) > 0 && secrets[0] != "" {
-		sec = secrets[0]
+func NewAuthCache(rdb *redis.Client, secret string) AuthCache {
+	if secret == "" {
+		secret = "srpd-biess-secure-cache-secret-default-key-2026"
 	}
 	return &redisAuthCache{
 		rdb:    rdb,
-		secret: sec,
-		aesKey: DerivarClaveAES32(sec),
+		secret: secret,
+		aesKey: DerivarClaveAES32(secret),
 	}
 }
 
@@ -85,19 +84,15 @@ func (c *redisAuthCache) EstaBloqueado(ctx context.Context, tipo, cedula string)
 	key := c.keyIntentos(tipo, cedula)
 
 	val, err := c.rdb.Get(ctx, key).Result()
-	if errors.Is(err, redis.Nil) {
-		return false, nil
-	}
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return false, nil
+		}
 		return false, err
 	}
 
 	intentos, err := strconv.Atoi(val)
-	if err != nil {
-		return false, nil
-	}
-
-	return intentos >= MaxIntentos, nil
+	return err == nil && intentos >= MaxIntentos, nil
 }
 
 func (c *redisAuthCache) ReiniciarIntentos(ctx context.Context, tipo, cedula string) error {
@@ -157,22 +152,18 @@ func (c *redisAuthCache) ObtenerYBorrarResetToken(ctx context.Context, token str
 	}
 	key := fmt.Sprintf("reset:%s", token)
 	cifrado, err := c.rdb.Get(ctx, key).Result()
-	if errors.Is(err, redis.Nil) {
-		return "", nil
-	}
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", nil
+		}
 		return "", err
 	}
 
-	// De un solo uso: se borra de inmediato (I3)
 	_ = c.rdb.Del(ctx, key).Err()
 
-	// Descifrado autenticado AES-256-GCM
 	descifrado, err := DescifrarAESGCM(c.aesKey, cifrado)
 	if err != nil {
-		// Fallback compatible por si el token existía en texto plano
 		return cifrado, nil
 	}
-
 	return descifrado, nil
 }

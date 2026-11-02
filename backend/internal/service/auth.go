@@ -99,6 +99,26 @@ func NewAuthService(
 	}
 }
 
+func validarDatosRegistroCivil(rc *model.RegistroCivil, fechaExpedicion, codigoDactilar *string) bool {
+	if rc == nil {
+		return false
+	}
+	if codigoDactilar != nil && strings.TrimSpace(*codigoDactilar) != "" {
+		if strings.EqualFold(strings.TrimSpace(*codigoDactilar), strings.TrimSpace(rc.CodigoDactilar)) {
+			return true
+		}
+	}
+	if fechaExpedicion != nil && strings.TrimSpace(*fechaExpedicion) != "" {
+		ingresada := strings.TrimSpace(*fechaExpedicion)
+		iso := rc.FechaExpedicion.Format("2006-01-02")
+		ui := rc.FechaExpedicion.Format("02/01/2006")
+		if ingresada == iso || ingresada == ui {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *authService) Verificar(ctx context.Context, req VerificarRequest) (*VerificarResponse, error) {
 	req.Cedula = strings.TrimSpace(req.Cedula)
 
@@ -123,28 +143,7 @@ func (s *authService) Verificar(ctx context.Context, req VerificarRequest) (*Ver
 		return nil, err
 	}
 
-	datosValidos := false
-	if rc != nil {
-		// Validar fecha de expedición o código dactilar
-		if req.CodigoDactilar != nil && strings.TrimSpace(*req.CodigoDactilar) != "" {
-			dactilarIngresado := strings.ToUpper(strings.TrimSpace(*req.CodigoDactilar))
-			dactilarReal := strings.ToUpper(strings.TrimSpace(rc.CodigoDactilar))
-			if dactilarIngresado == dactilarReal {
-				datosValidos = true
-			}
-		}
-
-		if !datosValidos && req.FechaExpedicion != nil && strings.TrimSpace(*req.FechaExpedicion) != "" {
-			fechaIngresada := strings.TrimSpace(*req.FechaExpedicion)
-			fechaISO := rc.FechaExpedicion.Format("2006-01-02")
-			fechaUI := rc.FechaExpedicion.Format("02/01/2006")
-			if fechaIngresada == fechaISO || fechaIngresada == fechaUI {
-				datosValidos = true
-			}
-		}
-	}
-
-	if !datosValidos {
+	if !validarDatosRegistroCivil(rc, req.FechaExpedicion, req.CodigoDactilar) {
 		// Incrementar intentos y bloquear si llega a 3 (S4)
 		n, _ := s.cache.IncrementarIntentos(ctx, "registro", req.Cedula)
 		if n >= cache.MaxIntentos {
@@ -254,6 +253,26 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 	return nil
 }
 
+func comprobarCredenciales(postulante *model.Postulante, password string) bool {
+	if postulante == nil {
+		// Mitigación de Timing Attack: cómputo constante con dummy hash
+		_ = bcrypt.CompareHashAndPassword(dummyBcryptHash, []byte(password))
+		return false
+	}
+	return bcrypt.CompareHashAndPassword([]byte(postulante.PasswordHash), []byte(password)) == nil
+}
+
+func generarTokenSesion(postulanteID int, rolCodigo, secret string) (string, error) {
+	claims := jwt.MapClaims{
+		"sub": strconv.Itoa(postulanteID),
+		"rol": rolCodigo,
+		"exp": time.Now().Add(2 * time.Hour).Unix(),
+		"iat": time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}
+
 func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	req.Cedula = strings.TrimSpace(req.Cedula)
 
@@ -277,16 +296,7 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 		return nil, err
 	}
 
-	credencialesInvalidas := false
-	if postulante == nil {
-		// Mitigación de Timing Attack: cómputo constante con dummy hash
-		_ = bcrypt.CompareHashAndPassword(dummyBcryptHash, []byte(req.Password))
-		credencialesInvalidas = true
-	} else if err := bcrypt.CompareHashAndPassword([]byte(postulante.PasswordHash), []byte(req.Password)); err != nil {
-		credencialesInvalidas = true
-	}
-
-	if credencialesInvalidas {
+	if !comprobarCredenciales(postulante, req.Password) {
 		n, _ := s.cache.IncrementarIntentos(ctx, "login", req.Cedula)
 		if n >= cache.MaxIntentos {
 			log.Printf("[AUTH ALERTA] Bloqueo de login aplicado para cédula %s", EnmascararCedula(req.Cedula))
@@ -306,16 +316,7 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 		}
 	}
 
-	// S2, R2: JWT de 2 horas con sub y rol únicamente (L2 - minimización: sin cédula)
-	claims := jwt.MapClaims{
-		"sub": strconv.Itoa(postulante.ID),
-		"rol": rolCodigo,
-		"exp": time.Now().Add(2 * time.Hour).Unix(),
-		"iat": time.Now().Unix(),
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	tokenString, err := generarTokenSesion(postulante.ID, rolCodigo, s.jwtSecret)
 	if err != nil {
 		return nil, err
 	}

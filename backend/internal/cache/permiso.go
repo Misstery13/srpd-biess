@@ -32,35 +32,50 @@ func NewCachedPermisoRepository(repo repository.PermisoRepository, rdb *redis.Cl
 func (c *CachedPermisoRepository) TienePermiso(ctx context.Context, rolCodigo, metodo, ruta string) (bool, error) {
 	key := fmt.Sprintf("rbac:permiso:%s:%s:%s", rolCodigo, metodo, ruta)
 
-	if c.rdb != nil {
-		ctxGet, cancel := context.WithTimeout(ctx, redisOpTimeout)
-		val, err := c.rdb.Get(ctxGet, key).Result()
-		cancel()
-
-		if err == nil {
-			return val == "1", nil
-		} else if !errors.Is(err, redis.Nil) {
-			log.Printf("[CACHE WARN] Redis no disponible para GET %s: %v. Fallback a PostgreSQL.", key, err)
-		}
+	if cached, ok := c.obtenerDeCache(ctx, key); ok {
+		return cached, nil
 	}
 
-	// Fallback a PostgreSQL
 	tiene, err := c.repo.TienePermiso(ctx, rolCodigo, metodo, ruta)
 	if err != nil {
 		return false, err
 	}
 
-	// Cachear resultado en Redis
-	if c.rdb != nil {
-		valToSet := "0"
-		if tiene {
-			valToSet = "1"
-		}
-		ctxSet, cancel := context.WithTimeout(ctx, redisOpTimeout)
-		defer cancel()
-		_ = c.rdb.Set(ctxSet, key, valToSet, PermisoTTL).Err()
-	}
-
+	c.guardarEnCache(ctx, key, tiene)
 	return tiene, nil
 }
 
+func (c *CachedPermisoRepository) obtenerDeCache(ctx context.Context, key string) (bool, bool) {
+	if c.rdb == nil {
+		return false, false
+	}
+
+	ctxGet, cancel := context.WithTimeout(ctx, redisOpTimeout)
+	defer cancel()
+
+	val, err := c.rdb.Get(ctxGet, key).Result()
+	if err != nil {
+		if !errors.Is(err, redis.Nil) {
+			log.Printf("[CACHE WARN] Redis GET %s fallo: %v. Fallback a BD.", key, err)
+		}
+		return false, false
+	}
+
+	return val == "1", true
+}
+
+func (c *CachedPermisoRepository) guardarEnCache(ctx context.Context, key string, tiene bool) {
+	if c.rdb == nil {
+		return
+	}
+
+	val := "0"
+	if tiene {
+		val = "1"
+	}
+
+	ctxSet, cancel := context.WithTimeout(ctx, redisOpTimeout)
+	defer cancel()
+
+	_ = c.rdb.Set(ctxSet, key, val, PermisoTTL).Err()
+}
