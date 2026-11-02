@@ -34,11 +34,14 @@ DECLARE
     v_codigo VARCHAR(20);
     v_seq_id INT;
 BEGIN
-    -- Obtener el ID del postulante de prueba (Juan Carlos Pérez López - 1710034065)
-    SELECT id INTO v_postulante_id FROM postulantes WHERE cedula = '1710034065';
+    -- Obtener o registrar temporalmente al postulante de prueba (Juan Carlos Pérez López - 1710034065)
+    SELECT id INTO v_postulante_id FROM postulantes WHERE cedula = '1710034065' AND deleted_at IS NULL;
     
     IF v_postulante_id IS NULL THEN
-        RAISE EXCEPTION 'Postulante con cédula 1710034065 no encontrado para la prueba.';
+        INSERT INTO postulantes (cedula, email, password_hash, rol_id)
+        VALUES ('1710034065', 'juan.perez@test.local', '$2a$10$abcdefghijklmnopqrstuvwxyz1234567890', 1)
+        RETURNING id INTO v_postulante_id;
+        RAISE NOTICE '-> Postulante de prueba registrado automáticamente (ID=%)', v_postulante_id;
     END IF;
 
     -- Paso A: Insertar cabecera con código formal BIESS-2026-XXXXXX
