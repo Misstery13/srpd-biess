@@ -50,7 +50,7 @@ export const NIVELES = [
   'Cuarto Nivel - Maestría Académica',
   'Cuarto Nivel PhD - Doctorado',
 ]
-export const AREAS = ['Finanzas', 'Mercado de Capitales', 'Administración de Empresas', 'Economía', 'Derecho', 'Materias afines']
+export const AREAS = ['Finanzas', 'Mercado de Capitales', 'Administración de Empresas', 'Economía', 'Derecho o materias afines']
 
 // Opciones con código de BD y texto visible
 export const TIPOS_FORMACION = [['NACIONAL', 'Nacional'], ['EXTRANJERA', 'Extranjera']]
