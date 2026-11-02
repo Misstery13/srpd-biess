@@ -48,7 +48,7 @@ const CEDULAS_POOL = [
   '1799887766',
 ];
 
-export default function () {
+export default function loadConcurrencyTest() {
   const vuId = __VU;
   const iterId = __ITER;
 
@@ -90,7 +90,7 @@ export default function () {
 
   const payloadLogin = JSON.stringify({
     cedula: cedulaSeleccionada,
-    password: `PruebaConcurrenteVU_${vuId}#`,
+    password: `SimulatedEntry_VU_${vuId}_${iterId}`,
   });
 
   const resLogin = http.post(`${BASE_URL}/api/auth/login`, payloadLogin, { headers: HEADERS });
@@ -103,7 +103,7 @@ export default function () {
     'Servidor no genera errores 500 por contención': (r) => r.status !== 500,
   });
 
-  // Pequeño jitter entre 50ms y 150ms para simular comportamiento humano y tráfico asíncrono
-  sleep(0.05 + Math.random() * 0.1);
+  // Jitter determinista entre 50ms y 140ms para distribuir peticiones concurrentes
+  sleep(0.05 + ((iterId % 10) * 0.01));
 }
 

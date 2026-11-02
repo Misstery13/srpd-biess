@@ -37,7 +37,7 @@ const PUBLIC_ENDPOINTS = [
   { method: 'GET', url: '/api/catalogos/provincias/17/cantones', name: 'GET /api/catalogos/provincias/:id/cantones' },
 ];
 
-export default function () {
+export default function securityEndpointsTest() {
   console.log(`[k6-Security] Evaluando protección de acceso contra: ${BASE_URL}`);
 
   // ----------------------------------------------------------------------------

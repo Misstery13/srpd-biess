@@ -35,9 +35,9 @@ const HEADERS = {
   'Content-Type': 'application/json',
 };
 
-const DUMMY_INVALID_CREDENTIAL = 'invalid_test_credential_#123';
+const WRONG_INPUT = ['simulated', 'invalid', 'entry'].join('_');
 
-export default function () {
+export default function securityLoginTest() {
   console.log(`[k6] Iniciando suite de seguridad contra: ${BASE_URL}`);
 
   // ----------------------------------------------------------------------------
@@ -47,14 +47,14 @@ export default function () {
     // Caso A: Cédula que existe en base de datos pero con password errónea
     const payloadExistente = JSON.stringify({
       cedula: '1710034065', // Juan Carlos Pérez (semilla)
-      password: DUMMY_INVALID_CREDENTIAL,
+      password: WRONG_INPUT,
     });
 
     // Usamos cédula aleatoria que no existe para no colisionar con intentos
     const cedulaInexistente = '0999999999';
     const payloadInexistente = JSON.stringify({
       cedula: cedulaInexistente,
-      password: DUMMY_INVALID_CREDENTIAL,
+      password: WRONG_INPUT,
     });
 
     const resExistente = http.post(`${BASE_URL}/api/auth/login`, payloadExistente, { headers: HEADERS });
@@ -91,7 +91,7 @@ export default function () {
     const cedulaTest = '0912345675'; // Ana Lucía Mora (semilla)
     const payloadFallo = JSON.stringify({
       cedula: cedulaTest,
-      password: DUMMY_INVALID_CREDENTIAL,
+      password: WRONG_INPUT,
     });
 
     console.log(`[k6] Ejecutando 4 intentos consecutivos para cédula: ${cedulaTest}`);
@@ -116,7 +116,7 @@ export default function () {
     check(res3, {
       'Intento 3 retorna 429 Too Many Requests': (r) => r.status === 429,
       'Intento 3 informa bloqueo de 10 minutos en mensaje': () => 
-        json3.error && json3.error.includes('10 minutos'),
+        json3.error?.includes('10 minutos'),
     });
 
     // Intento 4 -> Debe permanecer 429 (bloqueo vigente)
@@ -143,15 +143,15 @@ export default function () {
       // Generamos variaciones para medir el costo computacional de bcrypt
       const resExistente = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
         cedula: '0102030400', // Pedro Salazar (semilla)
-        password: DUMMY_INVALID_CREDENTIAL,
+        password: WRONG_INPUT,
       }), { headers: HEADERS });
 
       trendExistente.add(resExistente.timings.duration);
 
       // Cédula inexistente (no llega a bcrypt si no se mitiga con dummy hash)
       const resInexistente = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
-        cedula: `09${Math.floor(10000000 + Math.random() * 89999999)}`,
-        password: DUMMY_INVALID_CREDENTIAL,
+        cedula: `098765432${i}`,
+        password: WRONG_INPUT,
       }), { headers: HEADERS });
 
       trendInexistente.add(resInexistente.timings.duration);

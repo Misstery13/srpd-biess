@@ -9,9 +9,7 @@
 -- Para la verificación del sistema Go real, use: ./scripts/ejecutar_prueba_rollback.sh
 -- ============================================================================
 
-\echo '========================================================================'
-\echo '1. Verificando estado inicial antes de la transacción...'
-\echo '========================================================================'
+\echo '[FASE 1] Verificando estado inicial antes de la transaccion...'
 
 SELECT 
     (SELECT COUNT(*) FROM postulaciones) AS total_postulaciones,
@@ -23,10 +21,7 @@ SELECT
     (SELECT COUNT(*) FROM publicaciones) AS total_publicaciones,
     (SELECT COUNT(*) FROM inhabilidades) AS total_inhabilidades;
 
-\echo ''
-\echo '========================================================================'
-\echo '2. Iniciando transacción multi-tabla y forzando error en tabla hija...'
-\echo '========================================================================'
+\echo '[FASE 2] Iniciando transaccion multi-tabla y forzando error en tabla hija...'
 
 DO $$
 DECLARE
@@ -78,10 +73,7 @@ EXCEPTION
         RAISE;
 END $$;
 
-\echo ''
-\echo '========================================================================'
-\echo '3. Verificando estado final tras el ROLLBACK (Atomicidad garantizada)...'
-\echo '========================================================================'
+\echo '[FASE 3] Verificando estado final tras el ROLLBACK (Atomicidad garantizada)...'
 
 SELECT 
     (SELECT COUNT(*) FROM postulaciones) AS total_postulaciones,
@@ -89,7 +81,4 @@ SELECT
     (SELECT COUNT(*) FROM familiares_iess) AS total_familiares,
     (SELECT COUNT(*) FROM capacitaciones) AS total_capacitaciones;
 
-\echo ''
-\echo 'CONCLUSIÓN: No quedaron filas huérfanas ni cabeceras incompletas en la base de datos.'
-\echo '========================================================================'
-
+\echo '[CONCLUSION] No quedaron filas huerfanas ni cabeceras incompletas en la base de datos.'
