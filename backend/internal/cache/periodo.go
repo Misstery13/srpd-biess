@@ -63,3 +63,4 @@ func (c *CachedPeriodoRepository) ObtenerPeriodoActivo(ctx context.Context) (*re
 
 	return row, nil
 }
+

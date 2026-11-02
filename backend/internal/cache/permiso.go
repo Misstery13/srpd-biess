@@ -63,3 +63,4 @@ func (c *CachedPermisoRepository) TienePermiso(ctx context.Context, rolCodigo, m
 
 	return tiene, nil
 }
+

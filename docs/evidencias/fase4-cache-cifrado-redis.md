@@ -78,3 +78,4 @@ Se añadieron pruebas en [`backend/internal/cache/crypto_test.go`](file:///c:/Us
 - Propiedad de no-determinismo (mismo dato cifrado dos veces produce ciphertexts distintos por el nonce aleatorio).
 - Detección inmediata de manipulación de bytes (tampering / error de tag GCM).
 - Determinismo seguro de la pseudonimización de claves.
+

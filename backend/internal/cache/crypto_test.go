@@ -76,3 +76,4 @@ func TestCrypto_PseudonimizarClave(t *testing.T) {
 		t.Errorf("cédulas distintas produjeron el mismo pseudónimo (colisión inesperada)")
 	}
 }
+
