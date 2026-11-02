@@ -34,6 +34,9 @@ type Domicilio struct {
 	Sector          *string `json:"sector,omitempty"`
 	Referencia      *string `json:"referencia,omitempty"`
 	Telefono        *string `json:"telefono,omitempty"`
+	PaisNombre      *string `json:"pais_nombre,omitempty"`
+	ProvinciaNombre *string `json:"provincia_nombre,omitempty"`
+	CantonNombre    *string `json:"canton_nombre,omitempty"`
 }
 
 // FamiliarIESS representa a un familiar que trabaja en IESS o BIESS.
@@ -103,24 +106,24 @@ type Capacitacion struct {
 
 // Inhabilidades contiene las 13 declaraciones juradas (EF-12 1.9).
 type Inhabilidades struct {
-	PostulacionID                   int        `json:"postulacion_id,omitempty"`
-	GoceDerechosPoliticos           bool       `json:"goce_derechos_politicos"`
-	InhabilitadoComercio            bool       `json:"inhabilitado_comercio"`
-	MoraObligacionesEstado          bool       `json:"mora_obligaciones_estado"`
-	VinculoSistemaFinanciero        bool       `json:"vinculo_sistema_financiero"`
-	FuncionarioIessBiess            bool       `json:"funcionario_iess_biess"`
-	InteresAseguradoras             bool       `json:"interes_aseguradoras"`
-	RemovidoControl                 bool       `json:"removido_control"`
-	RemovidoInstitucion             *string    `json:"removido_institucion,omitempty"`
-	RemovidoCargo                   *string    `json:"removido_cargo,omitempty"`
-	RemovidoFechaFin                *time.Time `json:"removido_fecha_fin,omitempty"`
-	RemovidoMotivo                  *string    `json:"removido_motivo,omitempty"`
-	ObligacionesSRI                 bool       `json:"obligaciones_sri"`
-	CastigoObligacionesFinancieras  bool       `json:"castigo_obligaciones_financieras"`
-	LitigioIessBiess                bool       `json:"litigio_iess_biess"`
-	ProcesadoCorrupcion             bool       `json:"procesado_corrupcion"`
-	ResponsabilidadContraloria      bool       `json:"responsabilidad_contraloria"`
-	RegistradoUAFE                  bool       `json:"registrado_uafe"`
+	PostulacionID                  int        `json:"postulacion_id,omitempty"`
+	GoceDerechosPoliticos          *bool      `json:"goce_derechos_politicos"`
+	InhabilitadoComercio           *bool      `json:"inhabilitado_comercio"`
+	MoraObligacionesEstado         *bool      `json:"mora_obligaciones_estado"`
+	VinculoSistemaFinanciero       *bool      `json:"vinculo_sistema_financiero"`
+	FuncionarioIessBiess           *bool      `json:"funcionario_iess_biess"`
+	InteresAseguradoras            *bool      `json:"interes_aseguradoras"`
+	RemovidoControl                *bool      `json:"removido_control"`
+	RemovidoInstitucion            *string    `json:"removido_institucion,omitempty"`
+	RemovidoCargo                  *string    `json:"removido_cargo,omitempty"`
+	RemovidoFechaFin               *time.Time `json:"removido_fecha_fin,omitempty"`
+	RemovidoMotivo                 *string    `json:"removido_motivo,omitempty"`
+	ObligacionesSRI                *bool      `json:"obligaciones_sri"`
+	CastigoObligacionesFinancieras *bool      `json:"castigo_obligaciones_financieras"`
+	LitigioIessBiess               *bool      `json:"litigio_iess_biess"`
+	ProcesadoCorrupcion            *bool      `json:"procesado_corrupcion"`
+	ResponsabilidadContraloria     *bool      `json:"responsabilidad_contraloria"`
+	RegistradoUAFE                 *bool      `json:"registrado_uafe"`
 }
 
 // PostulacionCompleta agrupa todas las secciones del formulario EF-12.

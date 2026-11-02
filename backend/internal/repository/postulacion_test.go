@@ -84,6 +84,9 @@ func TestPostulacionRepository_TransaccionalYRollback(t *testing.T) {
 	provinciaID := 17 // Pichincha
 	cantonID := 1     // Quito
 
+	bTrue := true
+	bFalse := false
+
 	postulacion := &model.PostulacionCompleta{
 		PostulacionHeader: model.PostulacionHeader{
 			Cargo:        &cargo,
@@ -105,19 +108,19 @@ func TestPostulacionRepository_TransaccionalYRollback(t *testing.T) {
 			},
 		},
 		Inhabilidades: &model.Inhabilidades{
-			GoceDerechosPoliticos:          true,
-			InhabilitadoComercio:           false,
-			MoraObligacionesEstado:         false,
-			VinculoSistemaFinanciero:       false,
-			FuncionarioIessBiess:           false,
-			InteresAseguradoras:            false,
-			RemovidoControl:                false,
-			ObligacionesSRI:                false,
-			CastigoObligacionesFinancieras: false,
-			LitigioIessBiess:               false,
-			ProcesadoCorrupcion:            false,
-			ResponsabilidadContraloria:     false,
-			RegistradoUAFE:                 false,
+			GoceDerechosPoliticos:          &bTrue,
+			InhabilitadoComercio:           &bFalse,
+			MoraObligacionesEstado:         &bFalse,
+			VinculoSistemaFinanciero:       &bFalse,
+			FuncionarioIessBiess:           &bFalse,
+			InteresAseguradoras:            &bFalse,
+			RemovidoControl:                &bFalse,
+			ObligacionesSRI:                &bFalse,
+			CastigoObligacionesFinancieras: &bFalse,
+			LitigioIessBiess:               &bFalse,
+			ProcesadoCorrupcion:            &bFalse,
+			ResponsabilidadContraloria:     &bFalse,
+			RegistradoUAFE:                 &bFalse,
 		},
 	}
 
@@ -136,6 +139,9 @@ func TestPostulacionRepository_TransaccionalYRollback(t *testing.T) {
 	}
 	if len(obtenida.Familiares) != 1 {
 		t.Errorf("se esperaba 1 familiar guardado, se obtuvieron %d", len(obtenida.Familiares))
+	}
+	if obtenida.Domicilio == nil || obtenida.Domicilio.PaisNombre == nil || *obtenida.Domicilio.PaisNombre != "Ecuador" {
+		t.Errorf("se esperaba nombre de país 'Ecuador' cargado vía LEFT JOIN: %+v", obtenida.Domicilio)
 	}
 
 	// 2. PRUEBA DE ROLLBACK (Criterio de aceptación H3 / P4):

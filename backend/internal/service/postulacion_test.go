@@ -413,3 +413,190 @@ func TestPostulacionService_EnviarPostulacion_ExigeConsentimiento(t *testing.T) 
 		t.Errorf("se esperaba envío de correo de confirmación a Mailpit (I2), enviados: %v", emailSvc.enviados)
 	}
 }
+
+func TestPostulacionService_Inhabilidades_13PreguntasObligatorias(t *testing.T) {
+	ahora := time.Now()
+	periodoSvc := NewPeriodoService(&mockPeriodoRepo{
+		row: &repository.PeriodoRow{Inicio: ahora.Add(-time.Hour), Fin: ahora.Add(time.Hour)},
+	})
+	repoPost := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{PostulanteID: 1, Nacionalidad: "ECUATORIANA", EsAfiliado: true},
+	}
+	svc := NewPostulacionService(&mockPostulacionRepo{}, repoPost, periodoSvc, &mockEmailService{}, "")
+
+	bTrue := true
+	// Inhabilidades con una pregunta omitida (nil)
+	inhIncompleta := &model.Inhabilidades{
+		GoceDerechosPoliticos: &bTrue,
+		InhabilitadoComercio:  &bTrue,
+		// MoraObligacionesEstado omitido (nil)
+	}
+	_, err := svc.GuardarPostulacion(context.Background(), 1, &model.PostulacionCompleta{Inhabilidades: inhIncompleta})
+	if err == nil || !strings.Contains(err.Error(), "todas las 13 preguntas") {
+		t.Errorf("se esperaba error de validación por omitir preguntas de inhabilidades, se obtuvo: %v", err)
+	}
+}
+
+func TestPostulacionService_ValidarRutaDoc_NoExisteEnDisco(t *testing.T) {
+	tempDir, _ := os.MkdirTemp("", "uploads-check-stat-*")
+	defer os.RemoveAll(tempDir)
+
+	ahora := time.Now()
+	periodoSvc := NewPeriodoService(&mockPeriodoRepo{
+		row: &repository.PeriodoRow{Inicio: ahora.Add(-time.Hour), Fin: ahora.Add(time.Hour)},
+	})
+	repoPost := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{PostulanteID: 1, Nacionalidad: "ECUATORIANA", EsAfiliado: true},
+	}
+	// Con uploadsDir configurado, debe verificar os.Stat del archivo
+	svc := NewPostulacionService(&mockPostulacionRepo{}, repoPost, periodoSvc, &mockEmailService{}, tempDir)
+
+	rutaInexistente := "uploads/1/00000000-0000-0000-0000-000000000099.pdf"
+	respaldoTrue := true
+	orgNombre := "Organización Valida"
+	p := &model.PostulacionCompleta{
+		PostulacionHeader: model.PostulacionHeader{
+			RespaldoOrg:  &respaldoTrue,
+			OrgNombre:    &orgNombre,
+			OrgDocumento: &rutaInexistente,
+		},
+	}
+	_, err := svc.GuardarPostulacion(context.Background(), 1, p)
+	if err == nil || !strings.Contains(err.Error(), "no existe en el servidor") {
+		t.Errorf("se esperaba error por archivo no existente físicamente en disco (os.Stat), se obtuvo: %v", err)
+	}
+}
+
+func TestPostulacionService_EnviarPostulacion_OrdenColombiano403(t *testing.T) {
+	ahora := time.Now()
+	periodoSvc := NewPeriodoService(&mockPeriodoRepo{
+		row: &repository.PeriodoRow{Inicio: ahora.Add(-time.Hour), Fin: ahora.Add(time.Hour)},
+	})
+	// Postulante colombiano sin borrador previo de postulación (postulacion == nil)
+	repoCol := &mockPostulantePerfilRepo{
+		perfil: &model.PostulantePerfil{PostulanteID: 2, Nacionalidad: "COLOMBIANA"},
+	}
+	repoPostulacionVacio := &mockPostulacionRepo{postulacion: nil}
+	svc := NewPostulacionService(repoPostulacionVacio, repoCol, periodoSvc, &mockEmailService{}, "")
+
+	_, err := svc.EnviarPostulacion(context.Background(), 2, &model.EnviarPostulacionRequest{AceptaTerminos: true})
+	if err == nil || !strings.Contains(err.Error(), "nacionalidad ecuatoriana") {
+		t.Errorf("colombiano que llama a /enviar debe recibir 403 de nacionalidad ecuatoriana antes que 404, se obtuvo: %v", err)
+	}
+}
+
+func TestEmailService_EscapeHTML_InhabilidadesReales_FormularioCompleto(t *testing.T) {
+	bTrue := true
+	bFalse := false
+	provID := 17
+	cantID := 1
+	paisNom := "Ecuador"
+	provNom := "Pichincha"
+	cantNom := "Quito"
+	cargo := "AFILIADOS"
+	respaldoTrue := true
+	orgNombre := "Org <b>X</b>"
+	orgDoc := "uploads/1/00000000-0000-0000-0000-000000000001.pdf"
+	senNum := "1234/2020"
+	senFecha := time.Date(2020, 5, 10, 0, 0, 0, 0, time.UTC)
+	fechaConsentimiento := time.Date(2026, 11, 1, 14, 30, 0, 0, time.UTC)
+
+	perfil := &model.PostulantePerfil{
+		PostulanteID:    1,
+		Cedula:          "1710034065",
+		Nombres:         "Juan",
+		Apellidos:       "Pérez",
+		Genero:          "MASCULINO",
+		FechaNacimiento: time.Date(1985, 3, 15, 0, 0, 0, 0, time.UTC),
+		Nacionalidad:    "ECUATORIANA",
+		EstadoCivil:     "SOLTERO",
+		Email:           "juan@example.com",
+	}
+
+	p := &model.PostulacionCompleta{
+		PostulacionHeader: model.PostulacionHeader{
+			Cargo:               &cargo,
+			RespaldoOrg:         &respaldoTrue,
+			OrgNombre:           &orgNombre,
+			OrgDocumento:        &orgDoc,
+			FechaConsentimiento: &fechaConsentimiento,
+		},
+		Domicilio: &model.Domicilio{
+			PaisNombre:      &paisNom,
+			ProvinciaNombre: &provNom,
+			CantonNombre:    &cantNom,
+			PaisID:          52,
+			ProvinciaID:     &provID,
+			CantonID:        &cantID,
+			CallePrincipal:  "Av. Amazonas",
+			Celular:         "0991234567",
+		},
+		Formacion: []model.FormacionAcademica{
+			{
+				Nivel:          "Tercer Nivel de Grado",
+				Titulo:         "<script>alert(1)</script>",
+				Institucion:    "EPN",
+				Tipo:           "NACIONAL",
+				Area:           "Economía",
+				SenescytNumero: &senNum,
+				SenescytFecha:  &senFecha,
+			},
+		},
+		Inhabilidades: &model.Inhabilidades{
+			GoceDerechosPoliticos:          &bTrue,
+			InhabilitadoComercio:           &bFalse,
+			MoraObligacionesEstado:         &bTrue, // Responde Sí
+			VinculoSistemaFinanciero:       &bFalse,
+			FuncionarioIessBiess:           &bFalse,
+			InteresAseguradoras:            &bFalse,
+			RemovidoControl:                &bFalse,
+			ObligacionesSRI:                &bTrue, // Responde Sí
+			CastigoObligacionesFinancieras: &bFalse,
+			LitigioIessBiess:               &bFalse,
+			ProcesadoCorrupcion:            &bFalse,
+			ResponsabilidadContraloria:     &bFalse,
+			RegistradoUAFE:                 &bFalse,
+		},
+	}
+
+	htmlContent := renderFormularioHTML("BIESS-2026-000001", p, perfil)
+
+	// 1. Inyección de HTML prevenida (html.EscapeString)
+	if strings.Contains(htmlContent, "<script>alert(1)</script>") {
+		t.Errorf("falla de seguridad: script tag no fue escapado en el correo: %s", htmlContent)
+	}
+	if !strings.Contains(htmlContent, "&lt;script&gt;alert(1)&lt;/script&gt;") {
+		t.Errorf("se esperaba script tag escapado con entidades HTML: %s", htmlContent)
+	}
+	if strings.Contains(htmlContent, "Org <b>X</b>") {
+		t.Errorf("falla de seguridad: org_nombre no fue escapado: %s", htmlContent)
+	}
+	if !strings.Contains(htmlContent, "Org &lt;b&gt;X&lt;/b&gt;") {
+		t.Errorf("se esperaba org_nombre escapado: %s", htmlContent)
+	}
+
+	// 2. Inhabilidades reales (No mentir sobre mora y obligaciones)
+	if !strings.Contains(htmlContent, "mora, directa o indirectamente") {
+		t.Errorf("debe listar la pregunta de mora en obligaciones con el Estado")
+	}
+	if !strings.Contains(htmlContent, "obligaciones pendientes con el SRI") {
+		t.Errorf("debe listar la pregunta de obligaciones con el SRI")
+	}
+	// Debe mostrar que respondió Sí en ambas
+	if !strings.Contains(htmlContent, "obligaciones pendientes con el SRI?: <strong>Sí</strong>") {
+		t.Errorf("debe mostrar respuesta real 'Sí' a obligaciones con el SRI")
+	}
+
+	// 3. Códigos legibles (no crudos)
+	if !strings.Contains(htmlContent, "Sector de los Afiliados") {
+		t.Errorf("se esperaba texto legible para cargo AFILIADOS")
+	}
+	if !strings.Contains(htmlContent, "Nacional") {
+		t.Errorf("se esperaba texto legible para tipo de formación")
+	}
+
+	// 4. Consentimientos aceptados (1.10.1)
+	if !strings.Contains(htmlContent, "Ley Orgánica de Protección de Datos Personales") {
+		t.Errorf("debe incluir los consentimientos de 1.10.1 en el correo")
+	}
+}

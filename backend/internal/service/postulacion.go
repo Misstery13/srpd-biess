@@ -139,14 +139,27 @@ func (s *PostulacionService) postulanteHabilitado(ctx context.Context, id int, c
 	return nil
 }
 
-// validarRutaDoc verifica que el documento cumpla el patrón seguro y pertenezca al usuario (O1).
-func validarRutaDoc(ruta *string, postulanteID int, campo string) error {
+// validarRutaDoc verifica que el documento cumpla el patrón seguro, pertenezca al usuario y exista en disco (O1).
+func (s *PostulacionService) validarRutaDoc(ruta *string, postulanteID int, campo string) error {
 	if ruta == nil || strings.TrimSpace(*ruta) == "" {
 		return nil
 	}
-	m := rutaDocRegex.FindStringSubmatch(strings.TrimSpace(*ruta))
+	trimmed := strings.TrimSpace(*ruta)
+	m := rutaDocRegex.FindStringSubmatch(trimmed)
 	if m == nil || m[1] != strconv.Itoa(postulanteID) {
 		return NewErrValidacion(fmt.Sprintf("La ruta de documento en %s no es válida o no pertenece al postulante.", campo))
+	}
+
+	// 🟡 Menor 1: Verificar existencia física del archivo si uploadsDir está configurado
+	if s.uploadsDir != "" {
+		rel := strings.TrimPrefix(trimmed, "uploads/")
+		fullPath := filepath.Join(s.uploadsDir, rel)
+		if _, err := os.Stat(fullPath); err != nil {
+			if os.IsNotExist(err) {
+				return NewErrValidacion(fmt.Sprintf("El documento en %s no existe en el servidor. Debe subirlo antes de guardar.", campo))
+			}
+			return fmt.Errorf("error al verificar existencia de documento: %w", err)
+		}
 	}
 	return nil
 }
@@ -266,7 +279,7 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 			return "", NewErrValidacion("El documento de respaldo es obligatorio cuando se indica respaldo (1.4.x.3.1.2).")
 		}
 	}
-	if err := validarRutaDoc(p.OrgDocumento, postulanteID, "organización"); err != nil {
+	if err := s.validarRutaDoc(p.OrgDocumento, postulanteID, "organización"); err != nil {
 		return "", err
 	}
 
@@ -301,7 +314,7 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 			return "", NewErrValidacion(fmt.Sprintf("El área de estudios '%s' no es válida según la lista oficial (1.5.1.4).", fa.Area))
 		}
 
-		if err := validarRutaDoc(fa.Documento, postulanteID, "formación académica"); err != nil {
+		if err := s.validarRutaDoc(fa.Documento, postulanteID, "formación académica"); err != nil {
 			return "", err
 		}
 	}
@@ -324,7 +337,7 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 		if el.Documento == nil || strings.TrimSpace(*el.Documento) == "" {
 			return "", NewErrValidacion("El documento de respaldo es obligatorio para cada registro de experiencia laboral (1.6.8).")
 		}
-		if err := validarRutaDoc(el.Documento, postulanteID, "experiencia laboral"); err != nil {
+		if err := s.validarRutaDoc(el.Documento, postulanteID, "experiencia laboral"); err != nil {
 			return "", err
 		}
 
@@ -349,7 +362,7 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 		if pb.Documento == nil || strings.TrimSpace(*pb.Documento) == "" {
 			return "", NewErrValidacion("El documento de respaldo es obligatorio para cada publicación o trabajo de investigación (1.7.1.6).")
 		}
-		if err := validarRutaDoc(pb.Documento, postulanteID, "publicaciones"); err != nil {
+		if err := s.validarRutaDoc(pb.Documento, postulanteID, "publicaciones"); err != nil {
 			return "", err
 		}
 	}
@@ -370,16 +383,34 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 		if cp.Horas <= 0 {
 			return "", NewErrValidacion("Las horas de capacitación deben ser un número positivo.")
 		}
-		if err := validarRutaDoc(cp.Documento, postulanteID, "capacitaciones"); err != nil {
+		if err := s.validarRutaDoc(cp.Documento, postulanteID, "capacitaciones"); err != nil {
 			return "", err
 		}
 	}
 
-	// Inhabilidades: validación de campos condicionales obligatorios
-	if p.Inhabilidades != nil && p.Inhabilidades.RemovidoControl {
-		if p.Inhabilidades.RemovidoInstitucion == nil || strings.TrimSpace(*p.Inhabilidades.RemovidoInstitucion) == "" ||
-			p.Inhabilidades.RemovidoMotivo == nil || strings.TrimSpace(*p.Inhabilidades.RemovidoMotivo) == "" {
-			return "", NewErrValidacion("Si fue removido por un organismo de control, debe especificar institución y motivo.")
+	// Inhabilidades: validación de 13 preguntas obligatorias y campos condicionales
+	if p.Inhabilidades != nil {
+		if p.Inhabilidades.GoceDerechosPoliticos == nil ||
+			p.Inhabilidades.InhabilitadoComercio == nil ||
+			p.Inhabilidades.MoraObligacionesEstado == nil ||
+			p.Inhabilidades.VinculoSistemaFinanciero == nil ||
+			p.Inhabilidades.FuncionarioIessBiess == nil ||
+			p.Inhabilidades.InteresAseguradoras == nil ||
+			p.Inhabilidades.RemovidoControl == nil ||
+			p.Inhabilidades.ObligacionesSRI == nil ||
+			p.Inhabilidades.CastigoObligacionesFinancieras == nil ||
+			p.Inhabilidades.LitigioIessBiess == nil ||
+			p.Inhabilidades.ProcesadoCorrupcion == nil ||
+			p.Inhabilidades.ResponsabilidadContraloria == nil ||
+			p.Inhabilidades.RegistradoUAFE == nil {
+			return "", NewErrValidacion("Debe responder todas las 13 preguntas de la declaración de inhabilidades.")
+		}
+
+		if *p.Inhabilidades.RemovidoControl {
+			if p.Inhabilidades.RemovidoInstitucion == nil || strings.TrimSpace(*p.Inhabilidades.RemovidoInstitucion) == "" ||
+				p.Inhabilidades.RemovidoMotivo == nil || strings.TrimSpace(*p.Inhabilidades.RemovidoMotivo) == "" {
+				return "", NewErrValidacion("Si fue removido por un organismo de control, debe especificar institución y motivo.")
+			}
 		}
 	}
 
@@ -545,6 +576,12 @@ func (s *PostulacionService) SubirDocumento(ctx context.Context, postulanteID in
 
 // EnviarPostulacion finaliza y envía la postulación con consentimiento explícito LOPDP (L1, P3, I2).
 func (s *PostulacionService) EnviarPostulacion(ctx context.Context, postulanteID int, req *model.EnviarPostulacionRequest) (string, error) {
+	// 1, 3: Validar primero que el postulante sea ecuatoriano y no esté suprimido (V5, L5)
+	// Se ejecuta primero para que extranjeros reciban 403 y cuentas dadas de baja 401 antes que cualquier 404
+	if err := s.postulanteHabilitado(ctx, postulanteID, nil); err != nil {
+		return "", err
+	}
+
 	// T2: Validar período
 	periodo, err := s.periodoSvc.ObtenerPeriodo(ctx)
 	if err != nil {
@@ -568,7 +605,7 @@ func (s *PostulacionService) EnviarPostulacion(ctx context.Context, postulanteID
 		return "", NewErrNoEncontrado("No existe una postulación activa para enviar.")
 	}
 
-	// 1, 2, 3: Validar que el postulante esté habilitado y cumpla el cargo guardado en BD
+	// 2: Validar requisitos específicos del cargo guardado en BD (1.4.x)
 	if err := s.postulanteHabilitado(ctx, postulanteID, postulacion.Cargo); err != nil {
 		return "", err
 	}

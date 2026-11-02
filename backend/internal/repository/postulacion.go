@@ -82,12 +82,16 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 
 	postulacionID := res.ID
 
-	// 1. Domicilio
+	// 1. Domicilio con nombres de país, provincia y cantón
 	queryDom := `
-		SELECT postulacion_id, pais_id, provincia_id, canton_id, provincia_texto, ciudad_texto,
-		       celular, email2, calle_principal, numero, calle_secundaria, sector, referencia, telefono
-		FROM domicilios
-		WHERE postulacion_id = $1
+		SELECT d.postulacion_id, d.pais_id, d.provincia_id, d.canton_id, d.provincia_texto, d.ciudad_texto,
+		       d.celular, d.email2, d.calle_principal, d.numero, d.calle_secundaria, d.sector, d.referencia, d.telefono,
+		       pa.nombre, pr.nombre, ca.nombre
+		FROM domicilios d
+		LEFT JOIN paises pa ON d.pais_id = pa.id
+		LEFT JOIN provincias pr ON d.provincia_id = pr.id
+		LEFT JOIN cantones ca ON d.canton_id = ca.id
+		WHERE d.postulacion_id = $1
 	`
 	var dom model.Domicilio
 	err = r.pool.QueryRow(ctx, queryDom, postulacionID).Scan(
@@ -105,6 +109,9 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		&dom.Sector,
 		&dom.Referencia,
 		&dom.Telefono,
+		&dom.PaisNombre,
+		&dom.ProvinciaNombre,
+		&dom.CantonNombre,
 	)
 	if err == nil {
 		res.Domicilio = &dom
