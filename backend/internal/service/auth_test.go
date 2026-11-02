@@ -58,6 +58,14 @@ func (m *mockPostulanteRepo) BuscarRolPorID(ctx context.Context, id int) (*model
 	return &model.Rol{ID: id, Codigo: "POSTULANTE", Nombre: "Postulante"}, nil
 }
 
+func (m *mockPostulanteRepo) ObtenerDetalleRegistroCivil(ctx context.Context, postulanteID int) (*model.PostulantePerfil, error) {
+	return nil, nil
+}
+
+func (m *mockPostulanteRepo) SuprimirPostulante(ctx context.Context, postulanteID int) error {
+	return nil
+}
+
 type mockAuthCache struct {
 	intentos    map[string]int64
 	bloqueados  map[string]bool
@@ -125,6 +133,11 @@ type mockEmailService struct {
 }
 
 func (m *mockEmailService) EnviarRecuperacion(destinatario, token string) error {
+	m.enviados = append(m.enviados, destinatario)
+	return nil
+}
+
+func (m *mockEmailService) EnviarConfirmacionPostulacion(destinatario, codigo string, postulacion *model.PostulacionCompleta, perfil *model.PostulantePerfil) error {
 	m.enviados = append(m.enviados, destinatario)
 	return nil
 }
