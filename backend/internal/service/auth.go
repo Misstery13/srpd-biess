@@ -123,41 +123,47 @@ func validarDatosRegistroCivil(rc *model.RegistroCivil, fechaExpedicion, codigoD
 	return coincideDactilar(rc.CodigoDactilar, codigoDactilar) || coincideFechaExpedicion(rc.FechaExpedicion, fechaExpedicion)
 }
 
+func (s *authService) verificarBloqueoIntentos(ctx context.Context, tipo, cedula, msgBloqueo string) error {
+	bloqueado, err := s.cache.EstaBloqueado(ctx, tipo, cedula)
+	if err != nil && err != cache.ErrRedisNoDisponible {
+		return NewErrServicioNoDisponible("Servicio temporalmente no disponible")
+	}
+	if bloqueado {
+		log.Printf("[AUTH WARN] Intento con cuenta bloqueada: %s (tipo %s)", EnmascararCedula(cedula), tipo)
+		return NewErrBloqueado(msgBloqueo)
+	}
+	return nil
+}
+
+func (s *authService) registrarIntentoFallido(ctx context.Context, tipo, cedula, msgBloqueo string, errRetorno error) error {
+	n, _ := s.cache.IncrementarIntentos(ctx, tipo, cedula)
+	if n >= cache.MaxIntentos {
+		log.Printf("[AUTH ALERTA] Bloqueo aplicado (%s) tras 3 fallos para cédula %s", tipo, EnmascararCedula(cedula))
+		return NewErrBloqueado(msgBloqueo)
+	}
+	return errRetorno
+}
+
 func (s *authService) Verificar(ctx context.Context, req VerificarRequest) (*VerificarResponse, error) {
 	req.Cedula = strings.TrimSpace(req.Cedula)
 
-	// V1: Validación de cédula ecuatoriana módulo 10
 	if !ValidarCedula(req.Cedula) {
 		return nil, NewErrValidacion("El número de cédula ingresado no es válido")
 	}
 
-	// S4: Verificar si está bloqueado por 3 intentos fallidos
-	bloqueado, err := s.cache.EstaBloqueado(ctx, "registro", req.Cedula)
-	if err != nil && err != cache.ErrRedisNoDisponible {
-		return nil, NewErrServicioNoDisponible("Servicio temporalmente no disponible")
-	}
-	if bloqueado {
-		log.Printf("[AUTH WARN] Intento de verificación con cédula bloqueada: %s", EnmascararCedula(req.Cedula))
-		return nil, NewErrBloqueado("registro fallido, inténtelo nuevamente en 10 minutos")
+	if err := s.verificarBloqueoIntentos(ctx, "registro", req.Cedula, "registro fallido, inténtelo nuevamente en 10 minutos"); err != nil {
+		return nil, err
 	}
 
-	// Consultar interoperabilidad simulada con Registro Civil (I1)
 	rc, err := s.rcRepo.BuscarPorCedula(ctx, req.Cedula)
 	if err != nil {
 		return nil, err
 	}
 
 	if !validarDatosRegistroCivil(rc, req.FechaExpedicion, req.CodigoDactilar) {
-		// Incrementar intentos y bloquear si llega a 3 (S4)
-		n, _ := s.cache.IncrementarIntentos(ctx, "registro", req.Cedula)
-		if n >= cache.MaxIntentos {
-			log.Printf("[AUTH ALERTA] Bloqueo aplicado tras 3 intentos fallidos en verificación para cédula %s", EnmascararCedula(req.Cedula))
-			return nil, NewErrBloqueado("registro fallido, inténtelo nuevamente en 10 minutos")
-		}
-		return nil, NewErrNoAutorizado("la información ingresada es incorrecta")
+		return nil, s.registrarIntentoFallido(ctx, "registro", req.Cedula, "registro fallido, inténtelo nuevamente en 10 minutos", NewErrNoAutorizado("la información ingresada es incorrecta"))
 	}
 
-	// Verificar si la cédula ya tiene cuenta activa registrada
 	existente, err := s.postRepo.BuscarActivoPorCedula(ctx, req.Cedula)
 	if err != nil {
 		return nil, err
@@ -166,7 +172,6 @@ func (s *authService) Verificar(ctx context.Context, req VerificarRequest) (*Ver
 		return nil, NewErrConflicto("La cédula ya se encuentra registrada en el sistema")
 	}
 
-	// Guardar estado verificado en Redis para autorizar el paso 2 (TTL 10 min)
 	_ = s.cache.GuardarVerificado(ctx, req.Cedula)
 	_ = s.cache.ReiniciarIntentos(ctx, "registro", req.Cedula)
 
@@ -175,15 +180,54 @@ func (s *authService) Verificar(ctx context.Context, req VerificarRequest) (*Ver
 	return &VerificarResponse{Nombres: nombresCompletos}, nil
 }
 
+func validarCamposRegistro(req RegistrarRequest) error {
+	if !ValidarCedula(req.Cedula) {
+		return NewErrValidacion("El número de cédula ingresado no es válido")
+	}
+	if !ValidarPassword(req.Password) {
+		return NewErrValidacion("La contraseña debe tener al menos 8 caracteres e incluir letras y números")
+	}
+	if req.Email == "" || !strings.Contains(req.Email, "@") {
+		return NewErrValidacion("El correo electrónico no es válido")
+	}
+	return nil
+}
+
+func (s *authService) verificarUnicidadRegistro(ctx context.Context, cedula, email string) error {
+	activoCedula, err := s.postRepo.BuscarActivoPorCedula(ctx, cedula)
+	if err != nil {
+		return err
+	}
+	if activoCedula != nil {
+		return NewErrConflicto("La cédula ya se encuentra registrada en el sistema")
+	}
+
+	activoEmail, err := s.postRepo.BuscarActivoPorEmail(ctx, email)
+	if err != nil {
+		return err
+	}
+	if activoEmail != nil {
+		return NewErrConflicto("El correo electrónico ya se encuentra registrado")
+	}
+	return nil
+}
+
+func (s *authService) obtenerRolInicial(ctx context.Context) int {
+	rol, err := s.postRepo.BuscarRolPorCodigo(ctx, "POSTULANTE")
+	if err == nil && rol != nil {
+		return rol.ID
+	}
+	return 1
+}
+
 func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error {
 	req.Cedula = strings.TrimSpace(req.Cedula)
 	req.Email = strings.ToLower(strings.TrimSpace(req.Email))
 
-	if !ValidarCedula(req.Cedula) {
-		return NewErrValidacion("El número de cédula ingresado no es válido")
+	if err := validarCamposRegistro(req); err != nil {
+		return err
 	}
 
-	// Exigir paso 1 previo en Redis
 	verificado, err := s.cache.EsVerificado(ctx, req.Cedula)
 	if err != nil && err != cache.ErrRedisNoDisponible {
 		return NewErrServicioNoDisponible("Servicio temporalmente no disponible")
@@ -192,43 +236,10 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 		return NewErrValidacion("Debe verificar su identidad antes de registrarse")
 	}
 
-	// S3: Contraseña mínima 8 caracteres, al menos 1 letra y 1 número
-	if !ValidarPassword(req.Password) {
-		return NewErrValidacion("La contraseña debe tener al menos 8 caracteres e incluir letras y números")
-	}
-
-	if req.Email == "" || !strings.Contains(req.Email, "@") {
-		return NewErrValidacion("El correo electrónico no es válido")
-	}
-
-	// Verificar unicidad de cédula y email entre activos (V4, E2)
-	activoPorCedula, err := s.postRepo.BuscarActivoPorCedula(ctx, req.Cedula)
-	if err != nil {
+	if err := s.verificarUnicidadRegistro(ctx, req.Cedula, req.Email); err != nil {
 		return err
 	}
-	if activoPorCedula != nil {
-		return NewErrConflicto("La cédula ya se encuentra registrada en el sistema")
-	}
 
-	activoPorEmail, err := s.postRepo.BuscarActivoPorEmail(ctx, req.Email)
-	if err != nil {
-		return err
-	}
-	if activoPorEmail != nil {
-		return NewErrConflicto("El correo electrónico ya se encuentra registrado")
-	}
-
-	// Rol inicial POSTULANTE (R1, R2)
-	rol, err := s.postRepo.BuscarRolPorCodigo(ctx, "POSTULANTE")
-	if err != nil {
-		return err
-	}
-	rolID := 1
-	if rol != nil {
-		rolID = rol.ID
-	}
-
-	// S1: Hash con bcrypt
 	hash, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -238,7 +249,7 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 		Cedula:       req.Cedula,
 		Email:        req.Email,
 		PasswordHash: string(hash),
-		RolID:        rolID,
+		RolID:        s.obtenerRolInicial(ctx),
 	}
 
 	if err := s.postRepo.Crear(ctx, postulante); err != nil {
@@ -249,7 +260,6 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 		return err
 	}
 
-	// Limpiar caché de verificación y reintentos (S5)
 	_ = s.cache.BorrarVerificado(ctx, req.Cedula)
 	_ = s.cache.ReiniciarIntentos(ctx, "registro", req.Cedula)
 
@@ -277,6 +287,27 @@ func generarTokenSesion(postulanteID int, rolCodigo, secret string) (string, err
 	return token.SignedString([]byte(secret))
 }
 
+func (s *authService) resolverCodigoRol(ctx context.Context, rolID int) string {
+	if rolID > 0 {
+		if rol, err := s.postRepo.BuscarRolPorID(ctx, rolID); err == nil && rol != nil {
+			return rol.Codigo
+		}
+	}
+	return "POSTULANTE"
+}
+
+func (s *authService) enviarTokenRecuperacion(ctx context.Context, postulante *model.Postulante) {
+	if postulante == nil {
+		return
+	}
+	tokenBytes := make([]byte, 32)
+	if _, err := rand.Read(tokenBytes); err == nil {
+		tokenHex := hex.EncodeToString(tokenBytes)
+		_ = s.cache.GuardarResetToken(ctx, tokenHex, postulante.Cedula)
+		_ = s.emailSvc.EnviarRecuperacion(postulante.Email, tokenHex)
+	}
+}
+
 func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginResponse, error) {
 	req.Cedula = strings.TrimSpace(req.Cedula)
 
@@ -284,14 +315,8 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 		return nil, NewErrValidacion("Debe ingresar su cédula y contraseña")
 	}
 
-	// S4: Verificar si está bloqueado por 3 intentos
-	bloqueado, err := s.cache.EstaBloqueado(ctx, "login", req.Cedula)
-	if err != nil && err != cache.ErrRedisNoDisponible {
-		return nil, NewErrServicioNoDisponible("Servicio temporalmente no disponible")
-	}
-	if bloqueado {
-		log.Printf("[AUTH WARN] Intento de login con cuenta bloqueada: %s", EnmascararCedula(req.Cedula))
-		return nil, NewErrBloqueado("sus credenciales de ingreso están bloqueadas, inténtelo nuevamente en 10 minutos")
+	if err := s.verificarBloqueoIntentos(ctx, "login", req.Cedula, "sus credenciales de ingreso están bloqueadas, inténtelo nuevamente en 10 minutos"); err != nil {
+		return nil, err
 	}
 
 	// S6: Mensaje genérico de login fallido
@@ -301,25 +326,13 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	}
 
 	if !comprobarCredenciales(postulante, req.Password) {
-		n, _ := s.cache.IncrementarIntentos(ctx, "login", req.Cedula)
-		if n >= cache.MaxIntentos {
-			log.Printf("[AUTH ALERTA] Bloqueo de login aplicado para cédula %s", EnmascararCedula(req.Cedula))
-			return nil, NewErrBloqueado("sus credenciales de ingreso están bloqueadas, inténtelo nuevamente en 10 minutos")
-		}
-		return nil, NewErrNoAutorizado("sus credenciales de ingreso son incorrectas")
+		return nil, s.registrarIntentoFallido(ctx, "login", req.Cedula, "sus credenciales de ingreso están bloqueadas, inténtelo nuevamente en 10 minutos", NewErrNoAutorizado("sus credenciales de ingreso son incorrectas"))
 	}
 
 	// Éxito: reinicia contador de intentos (S5)
 	_ = s.cache.ReiniciarIntentos(ctx, "login", req.Cedula)
 
-	// R2: Obtener código de rol a partir del rol_id del postulante
-	rolCodigo := "POSTULANTE"
-	if postulante.RolID > 0 {
-		if rol, err := s.postRepo.BuscarRolPorID(ctx, postulante.RolID); err == nil && rol != nil {
-			rolCodigo = rol.Codigo
-		}
-	}
-
+	rolCodigo := s.resolverCodigoRol(ctx, postulante.RolID)
 	tokenString, err := generarTokenSesion(postulante.ID, rolCodigo, s.jwtSecret)
 	if err != nil {
 		return nil, err
@@ -336,14 +349,8 @@ func (s *authService) Recuperar(ctx context.Context, req RecuperarRequest) error
 		return NewErrValidacion("El número de cédula ingresado no es válido")
 	}
 
-	// S4: Verificar si está bloqueado por 3 intentos fallidos
-	bloqueado, err := s.cache.EstaBloqueado(ctx, "recuperar", req.Cedula)
-	if err != nil && err != cache.ErrRedisNoDisponible {
-		return NewErrServicioNoDisponible("Servicio temporalmente no disponible")
-	}
-	if bloqueado {
-		log.Printf("[AUTH WARN] Intento de recuperación con cédula bloqueada: %s", EnmascararCedula(req.Cedula))
-		return NewErrBloqueado("registro fallido, inténtelo nuevamente en 10 minutos")
+	if err := s.verificarBloqueoIntentos(ctx, "recuperar", req.Cedula, "registro fallido, inténtelo nuevamente en 10 minutos"); err != nil {
+		return err
 	}
 
 	// Verificar datos contra Registro Civil
@@ -353,34 +360,18 @@ func (s *authService) Recuperar(ctx context.Context, req RecuperarRequest) error
 	}
 
 	if !validarDatosRegistroCivil(rc, req.FechaExpedicion, req.CodigoDactilar) {
-		// S4: Incrementar intentos de recuperación y bloquear al 3er fallo
-		n, _ := s.cache.IncrementarIntentos(ctx, "recuperar", req.Cedula)
-		if n >= cache.MaxIntentos {
-			log.Printf("[AUTH ALERTA] Bloqueo de recuperación aplicado para cédula %s", EnmascararCedula(req.Cedula))
-			return NewErrBloqueado("registro fallido, inténtelo nuevamente en 10 minutos")
-		}
-		return NewErrNoAutorizado("la información ingresada es incorrecta")
+		return s.registrarIntentoFallido(ctx, "recuperar", req.Cedula, "registro fallido, inténtelo nuevamente en 10 minutos", NewErrNoAutorizado("la información ingresada es incorrecta"))
 	}
 
 	// Si los datos son correctos, reiniciar intentos de recuperación (S5)
 	_ = s.cache.ReiniciarIntentos(ctx, "recuperar", req.Cedula)
 
-	// Buscar si está registrado como postulante activo
 	postulante, err := s.postRepo.BuscarActivoPorCedula(ctx, req.Cedula)
 	if err != nil {
 		return err
 	}
 
-	if postulante != nil {
-		// I3: Generar token de recuperación aleatorio (crypto/rand) con TTL 15 min
-		tokenBytes := make([]byte, 32)
-		if _, err := rand.Read(tokenBytes); err == nil {
-			tokenHex := hex.EncodeToString(tokenBytes)
-			_ = s.cache.GuardarResetToken(ctx, tokenHex, postulante.Cedula)
-			_ = s.emailSvc.EnviarRecuperacion(postulante.Email, tokenHex)
-		}
-	}
-
+	s.enviarTokenRecuperacion(ctx, postulante)
 	log.Printf("[AUTH] Solicitud de recuperación procesada para cédula %s", EnmascararCedula(req.Cedula))
 	return nil
 }
