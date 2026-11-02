@@ -3,9 +3,10 @@
 -- Pista D (Datos) — Responsable: Gino Bermúdez (@ginobermudez76)
 -- Concurso Público de Méritos y Oposición del Directorio del BIESS
 --
--- Objetivo: Demostrar que ante un error en cualquier sección de la postulación,
--- la transacción revierte (ROLLBACK) completamente sin dejar datos huérfanos.
--- Cumple Criterio 2 de la Rúbrica de Evaluación (Persistencia Relacional & Transacciones).
+-- NOTA TÉCNICA: En PostgreSQL, las secuencias (postulaciones_id_seq) no son reversibles
+-- tras un ROLLBACK por diseño para evitar contención de bloqueos entre transacciones concurrentes.
+-- Este script es de referencia didáctica para ejecución en BD local de desarrollo.
+-- Para la verificación del sistema Go real, use: ./scripts/ejecutar_prueba_rollback.sh
 -- ============================================================================
 
 \echo '========================================================================'
@@ -39,7 +40,7 @@ BEGIN
     
     IF v_postulante_id IS NULL THEN
         INSERT INTO postulantes (cedula, email, password_hash, rol_id)
-        VALUES ('1710034065', 'juan.perez@test.local', '$2a$10$abcdefghijklmnopqrstuvwxyz1234567890', 1)
+        VALUES ('1710034065', 'juan.perez@test.local', 'hash_dummy_no_usable_para_pruebas_sql', 1)
         RETURNING id INTO v_postulante_id;
         RAISE NOTICE '-> Postulante de prueba registrado automáticamente (ID=%)', v_postulante_id;
     END IF;
@@ -54,9 +55,9 @@ BEGIN
 
     RAISE NOTICE '-> Cabecera creada exitosamente: ID=%, Código=%', v_postulacion_id, v_codigo;
 
-    -- Paso B: Insertar Domicilio
+    -- Paso B: Insertar Domicilio (provincia 1 Azuay, canton 1 Camilo Ponce Enríquez)
     INSERT INTO domicilios (postulacion_id, pais_id, provincia_id, canton_id, calle_principal, numero, celular)
-    VALUES (v_postulacion_id, 52, 17, 1, 'Av. Amazonas', 'N24-196', '0999887766');
+    VALUES (v_postulacion_id, 52, 1, 1, 'Av. Amazonas', 'N24-196', '0999887766');
     RAISE NOTICE '-> Domicilio insertado exitosamente.';
 
     -- Paso C: Insertar Familiar IESS

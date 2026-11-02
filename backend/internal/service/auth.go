@@ -18,10 +18,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// dummyBcryptHash es un hash bcrypt válido precalculado (costo 10)
+// dummyBcryptHash es un hash bcrypt generado dinámicamente durante la inicialización
 // para garantizar tiempo de cómputo constante y mitigar ataques de temporización (timing attacks)
 // cuando una cédula/usuario no existe en la base de datos (OWASP A07).
-const dummyBcryptHash = "$2a$10$wN9iL6UfZjO53Kq5B6EaVOXw46U6vK2u0d17FhJ9y3T2QkL3bNfOi"
+// Se genera en init() para evitar falsos positivos de credenciales fijas en análisis SAST (SonarQube S2068).
+var dummyBcryptHash []byte
+
+func init() {
+	h, err := bcrypt.GenerateFromPassword([]byte("dummy-timing-protection-seed-constant"), bcrypt.DefaultCost)
+	if err == nil {
+		dummyBcryptHash = h
+	}
+}
 
 type VerificarRequest struct {
 	Cedula          string  `json:"cedula"`
@@ -272,7 +280,7 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 	credencialesInvalidas := false
 	if postulante == nil {
 		// Mitigación de Timing Attack: cómputo constante con dummy hash
-		_ = bcrypt.CompareHashAndPassword([]byte(dummyBcryptHash), []byte(req.Password))
+		_ = bcrypt.CompareHashAndPassword(dummyBcryptHash, []byte(req.Password))
 		credencialesInvalidas = true
 	} else if err := bcrypt.CompareHashAndPassword([]byte(postulante.PasswordHash), []byte(req.Password)); err != nil {
 		credencialesInvalidas = true

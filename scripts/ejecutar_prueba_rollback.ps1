@@ -1,25 +1,32 @@
-# ==============================================================================
-# Script de Demostración de ROLLBACK Transaccional (PostgreSQL)
-# Concurso Público BIESS 2026 — Pista D (Datos): Gino Bermúdez
-# ==============================================================================
+Write-Host "SRPD BIESS - Validacion de Atomicidad y ROLLBACK Transaccional (Go)"
 
-Write-Host "Iniciando prueba de consistencia transaccional y ROLLBACK en PostgreSQL..." -ForegroundColor Cyan
-
-$containerName = "srpd-biess-postgres-1"
-$checkContainer = docker ps --filter "name=postgres" --format "{{.Names}}"
-
-if (-not $checkContainer) {
-    Write-Host "Contenedor de PostgreSQL no encontrado corriendo. Intentando levantar docker compose..." -ForegroundColor Yellow
+$postgresRunning = docker ps --filter "name=postgres" --filter "status=running" --format "{{.Names}}"
+if (-not $postgresRunning) {
+    Write-Host "Contenedor PostgreSQL inactivo. Levantando..."
     docker compose up -d postgres
     Start-Sleep -Seconds 3
-}
-
-Write-Host "Ejecutando script SQL de prueba dentro del contenedor de PostgreSQL..." -ForegroundColor Green
-docker compose exec -T postgres psql -U biess -d srpd_biess -f /db/prueba_rollback.sql
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "`nEl script generó la excepción esperada (CHECK horas > 0) y PostgreSQL ejecutó el ROLLBACK con éxito." -ForegroundColor Green
 } else {
-    Write-Host "`nPrueba finalizada." -ForegroundColor Green
+    Write-Host "Contenedor PostgreSQL activo."
 }
 
+$env:POSTGRES_HOST = "localhost"
+$env:POSTGRES_PORT = "5432"
+$env:POSTGRES_USER = "biess"
+$env:POSTGRES_PASSWORD = "biess"
+$env:POSTGRES_DB = "srpd_biess"
+
+Write-Host "Ejecutando TestPostulacionRepository_TransaccionalYRollback..."
+
+Push-Location "backend"
+go test -count=1 -v -run TestPostulacionRepository_TransaccionalYRollback ./internal/repository
+$testExit = $LASTEXITCODE
+Pop-Location
+
+if ($testExit -ne 0) {
+    Write-Host "ERROR: La prueba de ROLLBACK transaccional FALLO (codigo $testExit)."
+    exit 1
+}
+
+Write-Host "EXITO: Transaccion probada contra el repositorio real de Go."
+Write-Host "Se verifico que ante error de restriccion (CHECK horas > 0), PostgreSQL ejecuto ROLLBACK completo"
+Write-Host "y no quedaron registros huerfanos en ninguna tabla hija."

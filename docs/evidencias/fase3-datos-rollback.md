@@ -10,94 +10,73 @@
 
 ## 1. Arquitectura de Transaccionalidad Multi-Tabla
 
-Para el Concurso de Méritos del Directorio del BIESS, el guardado de la postulación (`EF-12`) involucra 8 tablas dependientes:
+Para el Concurso de Méritos del Directorio del BIESS, el guardado de la postulación (`EF-12`) involucra 8 tablas relacionales dependientes:
 1. `postulaciones` (Cabecera y código único `BIESS-2026-XXXXXX`)
 2. `domicilios` (Ubicación nacional o extranjera)
-3. `familiares_iess` (Declaración de parentesco institucional)
-4. `formacion_academica` (Títulos nacionales y extranjeros)
+3. `familiares_iess` (Declaración de parentesco institucional de 4to grado de consanguinidad o 2do de afinidad)
+4. `formacion_academica` (Títulos de 3er y 4to nivel)
 5. `experiencia_laboral` (Cálculo dinámico de trayectoria)
 6. `publicaciones` (Artículos e investigaciones)
-7. `capacitaciones` (Cursos y seminarios con validación `horas > 0`)
-8. `inhabilidades` (18 declaraciones juradas de inhabilidad legal)
+7. `capacitaciones` (Cursos y seminarios con validación `CHECK (horas > 0)`)
+8. `inhabilidades` (**13** declaraciones juradas de inhabilidad legal, conforme al Art. 1.9 del pliego)
 
-### Implementación en Go (`backend/internal/repository/postulacion.go`):
-```go
-func (r *pgxPostulacionRepository) GuardarTransaccional(ctx context.Context, postulanteID int, p *model.PostulacionCompleta) (string, error) {
-    tx, err := r.pool.Begin(ctx)
-    if err != nil {
-        return "", fmt.Errorf("error al iniciar transaccion: %w", err)
-    }
-    defer tx.Rollback(ctx) // Garantía de ROLLBACK ante cualquier pánico o error intermedio
+### Implementación Oficial del Sistema
+La lógica transaccional está implementada directamente en el repositorio de Go:  
+👉 Ver código fuente en [`backend/internal/repository/postulacion.go`](file:///c:/Users/Gino/Proyectos/srpd-biess/backend/internal/repository/postulacion.go) (`GuardarTransaccional`).
 
-    // Inserción o actualización de cabecera...
-    // Limpieza atómica de tablas hijas anteriores (B3)...
-    // Inserción secuencial de domicilios, familiares, formación, experiencia, etc.
-
-    if err := tx.Commit(ctx); err != nil {
-        return "", fmt.Errorf("error al hacer commit del guardado: %w", err)
-    }
-    return codigo, nil
-}
-```
+El flujo inicia una transacción de base de datos con `r.pool.Begin(ctx)` y garantiza mediante `defer tx.Rollback(ctx)` que si ocurre cualquier error durante la inserción secuencial de cabecera o de alguna de las tablas hijas, la transacción se revierte íntegramente.
 
 ---
 
-## 2. Demostración Práctica del ROLLBACK (Prueba de Fallo Forzado)
+## 2. Validación de Consistencia y Demostración del ROLLBACK
 
-Para comprobar la **atomicidad (propiedad ACID)**, se implementó una prueba controlada que simula un fallo en la última inserción de la postulación:
+Para verificar la **atomicidad (propiedad ACID)** contra el código real del sistema y evitar duplicaciones de sentencias SQL, la validación se apoya en el test de integración de Go:
+👉 [`backend/internal/repository/postulacion_test.go`](file:///c:/Users/Gino/Proyectos/srpd-biess/backend/internal/repository/postulacion_test.go) (`TestPostulacionRepository_TransaccionalYRollback`).
 
-### A. Prueba Unitaria en Go (`backend/internal/repository/postulacion_test.go`)
-La prueba `TestPostulacionRepository_TransaccionalYRollback`:
-1. Registra una postulación con datos válidos en borrador.
-2. Intenta guardar una modificación que incluye una capacitación con `Horas: -10`, violando la restricción SQL `CHECK (horas > 0)`.
-3. Comprueba que el método retorna error y que la base de datos ejecuta `ROLLBACK`.
-4. Comprueba mediante `ObtenerPorPostulanteID` que los datos preexistentes permanecen **100% intactos**, sin datos huérfanos ni cabeceras corrompidas.
+### Metodología de la Prueba:
+1. Registra un postulante temporal de prueba y guarda una postulación completa con éxito en estado `BORRADOR`.
+2. Intenta guardar una modificación que incluye una capacitación inválida con `Horas: -10`, provocando intencionalmente la excepción SQL `capacitaciones_horas_check`.
+3. Comprueba que el método `GuardarTransaccional` captura el error y dispara el `ROLLBACK`.
+4. Consulta las tablas dependientes y verifica que los datos preexistentes permanecen intactos, sin registros huérfanos ni cabeceras inconsistentes.
+5. Limpia los datos de prueba en la cláusula `defer`.
 
-### B. Script de Ejecución SQL Directo (`db/prueba_rollback.sql`)
-Permite reproducir el comportamiento transaccional en PostgreSQL:
+### Scripts de Ejecución Automatizada:
+Para ejecutar la prueba localmente o en un contenedor Docker con PostgreSQL levantado desde cero:
 ```bash
+# En Linux / macOS / Bash:
 ./scripts/ejecutar_prueba_rollback.sh
+
+# En Windows PowerShell:
+.\scripts\ejecutar_prueba_rollback.ps1
 ```
 
-**Salida de Ejecución:**
+**Resultado de Ejecución Real (`go test` con PostgreSQL en Docker):**
 ```text
-========================================================================
-1. Verificando estado inicial antes de la transacción...
-========================================================================
- total_postulaciones | total_domicilios | total_familiares | total_capacitaciones 
----------------------+------------------+------------------+----------------------
-                   0 |                0 |                0 |                    0
-
-========================================================================
-2. Iniciando transacción multi-tabla y forzando error en tabla hija...
-========================================================================
-NOTICE:  -> Cabecera creada exitosamente: ID=1, Código=BIESS-2026-000001
-NOTICE:  -> Domicilio insertado exitosamente.
-NOTICE:  -> Familiar IESS insertado exitosamente.
-NOTICE:  -> Intentando insertar capacitación inválida con horas = -10 (forzando violación CHECK)...
-WARNING: ¡Error de restricción CHECK capturado exitosamente! Motivo: Las horas de capacitación deben ser mayores a 0.
-NOTICE:  Ejecutando ROLLBACK integral... Ningún registro debe persistir.
-ERROR:   el nuevo registro para la relación «capacitaciones» viola la restricción «check» «capacitaciones_horas_check»
-
-========================================================================
-3. Verificando estado final tras el ROLLBACK (Atomicidad garantizada)...
-========================================================================
- total_postulaciones | total_domicilios | total_familiares | total_capacitaciones 
----------------------+------------------+------------------+----------------------
-                   0 |                0 |                0 |                    0
-
-CONCLUSIÓN: No quedaron filas huérfanas ni cabeceras incompletas en la base de datos.
-========================================================================
+SRPD BIESS - Validacion de Atomicidad y ROLLBACK Transaccional (Go)
+Contenedor PostgreSQL activo.
+Ejecutando TestPostulacionRepository_TransaccionalYRollback...
+=== RUN   TestPostulacionRepository_TransaccionalYRollback
+--- PASS: TestPostulacionRepository_TransaccionalYRollback (0.22s)
+PASS
+ok  	github.com/Misstery13/srpd-biess/backend/internal/repository	0.506s
+EXITO: Transaccion probada contra el repositorio real de Go.
+Se verifico que ante error de restriccion (CHECK horas > 0), PostgreSQL ejecuto ROLLBACK completo
+y no quedaron registros huerfanos en ninguna tabla hija.
 ```
+
+> [!NOTE]
+> **Comportamiento de Secuencias en PostgreSQL:**
+> En PostgreSQL, las secuencias (`postulaciones_id_seq`) son transaccionalmente no reversibles (`nextval` no retrocede ante un `ROLLBACK` para evitar contención de bloqueos entre sesiones concurrentes). El test automatizado de Go maneja la limpieza y el estado sin comprometer la correlación numérica en producción.
 
 ---
 
 ## 3. Cumplimiento de la Ley Orgánica de Protección de Datos Personales (LOPDP)
 
-Conforme a lo acordado en el **PR #15**, la persistencia implementa el derecho de supresión y minimización mediante el método `SuprimirPostulante`:
-1. **Baja Lógica del Postulante:** Se asigna `deleted_at = now()`.
-2. **Anonimización:** El correo se sustituye por `eliminado-{id}@anonimo.invalid` y el `password_hash` se borra físicamente.
-3. **Eliminación de Datos de Terceros:** Los datos de cónyuge y familiares IESS se eliminan físicamente de inmediato para proteger la privacidad de terceros (Art. 12 LOPDP).
-4. **Preservación Legal:** Se conservan únicamente la cédula, el código `BIESS-2026-XXXXXX` y las fechas de auditoría para garantizar la transparencia del concurso público ante la Contraloría.
-5. **Índices Únicos Parciales:** La restricción `WHERE deleted_at IS NULL` permite que si el ciudadano desea ejercer su derecho de postulación en un nuevo proceso, el índice no colisione con el registro suprimido.
+Conforme a lo consensuado en el **PR #15** y en estricto cumplimiento del principio de minimización y derecho de supresión (Art. 12 LOPDP):
 
+1. **Baja Lógica y Despersonalización:**  
+   La cuenta del postulante no se destruye de inmediato para fines de auditoría; se marca con `deleted_at = now()`, su correo se anonimiza (`eliminado-{id}@anonimo.invalid`) y su `password_hash` se borra físicamente.
+2. **Supresión Física de Datos de Postulación:**  
+   Al solicitar la baja mediante `SuprimirPostulacion`, se eliminan físicamente en cascada las tablas dependientes de la postulación (`domicilios`, `familiares_iess`, `formacion_academica`, `experiencia_laboral`, `publicaciones`, `capacitaciones`, `documentos_postulacion` e `inhabilidades`).
+3. **Datos de Identidad y Cónyuge:**  
+   Los datos personales de identidad y del cónyuge provienen de la simulación oficial del Registro Civil (`registro_civil`) y no son modificados ni eliminados por el sistema de postulación, preservando la inmutabilidad de la fuente de identidad fidedigna.

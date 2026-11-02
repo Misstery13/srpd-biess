@@ -35,6 +35,8 @@ const HEADERS = {
   'Content-Type': 'application/json',
 };
 
+const DUMMY_INVALID_CREDENTIAL = 'invalid_test_credential_#123';
+
 export default function () {
   console.log(`[k6] Iniciando suite de seguridad contra: ${BASE_URL}`);
 
@@ -45,14 +47,14 @@ export default function () {
     // Caso A: Cédula que existe en base de datos pero con password errónea
     const payloadExistente = JSON.stringify({
       cedula: '1710034065', // Juan Carlos Pérez (semilla)
-      password: 'ClaveInvalida123*',
+      password: DUMMY_INVALID_CREDENTIAL,
     });
 
     // Usamos cédula aleatoria que no existe para no colisionar con intentos
     const cedulaInexistente = '0999999999';
     const payloadInexistente = JSON.stringify({
       cedula: cedulaInexistente,
-      password: 'ClaveInvalida123*',
+      password: DUMMY_INVALID_CREDENTIAL,
     });
 
     const resExistente = http.post(`${BASE_URL}/api/auth/login`, payloadExistente, { headers: HEADERS });
@@ -89,7 +91,7 @@ export default function () {
     const cedulaTest = '0912345675'; // Ana Lucía Mora (semilla)
     const payloadFallo = JSON.stringify({
       cedula: cedulaTest,
-      password: 'PasswordIncorrecto999#',
+      password: DUMMY_INVALID_CREDENTIAL,
     });
 
     console.log(`[k6] Ejecutando 4 intentos consecutivos para cédula: ${cedulaTest}`);
@@ -141,7 +143,7 @@ export default function () {
       // Generamos variaciones para medir el costo computacional de bcrypt
       const resExistente = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
         cedula: '0102030400', // Pedro Salazar (semilla)
-        password: 'ClaveErroneaParaTiming#1',
+        password: DUMMY_INVALID_CREDENTIAL,
       }), { headers: HEADERS });
 
       trendExistente.add(resExistente.timings.duration);
@@ -149,7 +151,7 @@ export default function () {
       // Cédula inexistente (no llega a bcrypt si no se mitiga con dummy hash)
       const resInexistente = http.post(`${BASE_URL}/api/auth/login`, JSON.stringify({
         cedula: `09${Math.floor(10000000 + Math.random() * 89999999)}`,
-        password: 'ClaveErroneaParaTiming#1',
+        password: DUMMY_INVALID_CREDENTIAL,
       }), { headers: HEADERS });
 
       trendInexistente.add(resInexistente.timings.duration);

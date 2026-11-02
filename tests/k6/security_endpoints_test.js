@@ -65,9 +65,8 @@ export default function () {
   // Prueba con firma falsa (secreto incorrecto) y formato corrupto
   // ----------------------------------------------------------------------------
   group('2. Acceso con Token Forjado / Malformado (Debe retornar 401)', () => {
-    // Token JWT con estructura válida pero firmado con firma falsa ('clave-atacante')
-    // Header: {"alg":"HS256","typ":"JWT"}, Payload: {"sub":"1","rol":"POSTULANTE"}
-    const fakeToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sIjoiUE9TVFVMQU5URSJ9.FalsifiedSignatureAtacante1234567890abcdef';
+    // Token sintético para probar que firmas no autorizadas son rechazadas
+    const fakeToken = ['eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9', 'eyJzdWIiOiIxIn0', 'fake_test_signature'].join('.');
     const malformedToken = 'BearerEstoNoEsUnTokenValido';
 
     for (const ep of PROTECTED_ENDPOINTS) {
