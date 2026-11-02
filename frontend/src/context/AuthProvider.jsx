@@ -5,13 +5,13 @@ import { AuthContext } from './auth.js'
 // S2: el token vive en memoria (estado) y en sessionStorage para sobrevivir a un F5
 export default function AuthProvider({ children }) {
   const [token, setToken] = useState(getToken)
-  const [sesionExpirada, setSesionExpirada] = useState(false)
+  const [aviso, setAviso] = useState('') // se muestra en /login al cerrarse la sesión
 
   useEffect(
     () =>
       onNoAutorizado(() => {
         setToken(null)
-        setSesionExpirada(true)
+        setAviso('Su sesión terminó. Ingrese nuevamente.')
       }),
     [],
   )
@@ -19,18 +19,19 @@ export default function AuthProvider({ children }) {
   const valor = useMemo(
     () => ({
       autenticado: !!token,
-      sesionExpirada,
+      aviso,
       iniciarSesion(nuevo) {
         guardarToken(nuevo)
         setToken(nuevo)
-        setSesionExpirada(false)
+        setAviso('')
       },
-      cerrarSesion() {
+      cerrarSesion(mensaje = '') {
         guardarToken(null)
         setToken(null)
+        setAviso(mensaje)
       },
     }),
-    [token, sesionExpirada],
+    [token, aviso],
   )
 
   return <AuthContext.Provider value={valor}>{children}</AuthContext.Provider>

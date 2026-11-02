@@ -16,7 +16,7 @@ export default function Layout() {
             <p className="text-sm text-emerald-100">Directorio del BIESS</p>
           </div>
           {autenticado && (
-            <button type="button" onClick={cerrarSesion} className="shrink-0 rounded-md border border-emerald-300 px-3 py-1.5 text-sm hover:bg-emerald-700">
+            <button type="button" onClick={() => cerrarSesion()} className="shrink-0 rounded-md border border-emerald-300 px-3 py-1.5 text-sm hover:bg-emerald-700">
               Cerrar sesión
             </button>
           )}
