@@ -11,12 +11,18 @@ func TestCrypto_CifradoYDescifradoAESGCM(t *testing.T) {
 
 	t.Run("CifradoYDescifradoBasico", func(t *testing.T) {
 		cifrado, err := CifrarAESGCM(key, cedula)
-		if err != nil || cifrado == "" || cifrado == cedula {
+		if err != nil {
 			t.Fatalf("error al cifrar dato: %v", err)
+		}
+		if cifrado == "" || cifrado == cedula {
+			t.Fatalf("el texto cifrado no puede ser vacío ni igual al texto en claro: %s", cifrado)
 		}
 
 		descifrado, err := DescifrarAESGCM(key, cifrado)
-		if err != nil || descifrado != cedula {
+		if err != nil {
+			t.Fatalf("error al descifrar: %v", err)
+		}
+		if descifrado != cedula {
 			t.Fatalf("descifrado incorrecto: esperado '%s', obtenido '%s'", cedula, descifrado)
 		}
 	})

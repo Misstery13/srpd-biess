@@ -78,7 +78,13 @@ func main() {
 	cachedPermisoRepo := cache.NewCachedPermisoRepository(permisoRepo, redisClient)
 	authCache := cache.NewAuthCache(redisClient, cfg.JWTSecret)
 	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
-	authSvc := service.NewAuthService(rcRepo, postRepo, authCache, emailSvc, cfg.JWTSecret)
+	authSvc := service.NewAuthService(service.AuthConfig{
+		RCRepo:    rcRepo,
+		PostRepo:  postRepo,
+		Cache:     authCache,
+		EmailSvc:  emailSvc,
+		JWTSecret: cfg.JWTSecret,
+	})
 	authHdl := handler.NewAuthHandler(authSvc)
 
 	// Periodo de postulación (T2, con caché en Redis para optimización de consultas - Issue #24)

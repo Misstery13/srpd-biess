@@ -83,40 +83,44 @@ type authService struct {
 	jwtSecret string
 }
 
-func NewAuthService(
-	rcRepo repository.RegistroCivilRepository,
-	postRepo repository.PostulanteRepository,
-	cache cache.AuthCache,
-	emailSvc EmailService,
-	jwtSecret string,
-) AuthService {
+type AuthConfig struct {
+	RCRepo    repository.RegistroCivilRepository
+	PostRepo  repository.PostulanteRepository
+	Cache     cache.AuthCache
+	EmailSvc  EmailService
+	JWTSecret string
+}
+
+func NewAuthService(cfg AuthConfig) AuthService {
 	return &authService{
-		rcRepo:    rcRepo,
-		postRepo:  postRepo,
-		cache:     cache,
-		emailSvc:  emailSvc,
-		jwtSecret: jwtSecret,
+		rcRepo:    cfg.RCRepo,
+		postRepo:  cfg.PostRepo,
+		cache:     cfg.Cache,
+		emailSvc:  cfg.EmailSvc,
+		jwtSecret: cfg.JWTSecret,
 	}
+}
+
+func coincideDactilar(real string, ingresado *string) bool {
+	if ingresado == nil || strings.TrimSpace(*ingresado) == "" {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(*ingresado), strings.TrimSpace(real))
+}
+
+func coincideFechaExpedicion(real time.Time, ingresada *string) bool {
+	if ingresada == nil || strings.TrimSpace(*ingresada) == "" {
+		return false
+	}
+	val := strings.TrimSpace(*ingresada)
+	return val == real.Format("2006-01-02") || val == real.Format("02/01/2006")
 }
 
 func validarDatosRegistroCivil(rc *model.RegistroCivil, fechaExpedicion, codigoDactilar *string) bool {
 	if rc == nil {
 		return false
 	}
-	if codigoDactilar != nil && strings.TrimSpace(*codigoDactilar) != "" {
-		if strings.EqualFold(strings.TrimSpace(*codigoDactilar), strings.TrimSpace(rc.CodigoDactilar)) {
-			return true
-		}
-	}
-	if fechaExpedicion != nil && strings.TrimSpace(*fechaExpedicion) != "" {
-		ingresada := strings.TrimSpace(*fechaExpedicion)
-		iso := rc.FechaExpedicion.Format("2006-01-02")
-		ui := rc.FechaExpedicion.Format("02/01/2006")
-		if ingresada == iso || ingresada == ui {
-			return true
-		}
-	}
-	return false
+	return coincideDactilar(rc.CodigoDactilar, codigoDactilar) || coincideFechaExpedicion(rc.FechaExpedicion, fechaExpedicion)
 }
 
 func (s *authService) Verificar(ctx context.Context, req VerificarRequest) (*VerificarResponse, error) {
@@ -348,23 +352,7 @@ func (s *authService) Recuperar(ctx context.Context, req RecuperarRequest) error
 		return err
 	}
 
-	datosValidos := false
-	if rc != nil {
-		if req.CodigoDactilar != nil && strings.TrimSpace(*req.CodigoDactilar) != "" {
-			if strings.ToUpper(strings.TrimSpace(*req.CodigoDactilar)) == strings.ToUpper(strings.TrimSpace(rc.CodigoDactilar)) {
-				datosValidos = true
-			}
-		}
-
-		if !datosValidos && req.FechaExpedicion != nil && strings.TrimSpace(*req.FechaExpedicion) != "" {
-			fechaIngresada := strings.TrimSpace(*req.FechaExpedicion)
-			if fechaIngresada == rc.FechaExpedicion.Format("2006-01-02") || fechaIngresada == rc.FechaExpedicion.Format("02/01/2006") {
-				datosValidos = true
-			}
-		}
-	}
-
-	if !datosValidos {
+	if !validarDatosRegistroCivil(rc, req.FechaExpedicion, req.CodigoDactilar) {
 		// S4: Incrementar intentos de recuperación y bloquear al 3er fallo
 		n, _ := s.cache.IncrementarIntentos(ctx, "recuperar", req.Cedula)
 		if n >= cache.MaxIntentos {
