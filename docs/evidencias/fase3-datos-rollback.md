@@ -100,3 +100,4 @@ Conforme a lo acordado en el **PR #15**, la persistencia implementa el derecho d
 3. **Eliminación de Datos de Terceros:** Los datos de cónyuge y familiares IESS se eliminan físicamente de inmediato para proteger la privacidad de terceros (Art. 12 LOPDP).
 4. **Preservación Legal:** Se conservan únicamente la cédula, el código `BIESS-2026-XXXXXX` y las fechas de auditoría para garantizar la transparencia del concurso público ante la Contraloría.
 5. **Índices Únicos Parciales:** La restricción `WHERE deleted_at IS NULL` permite que si el ciudadano desea ejercer su derecho de postulación en un nuevo proceso, el índice no colisione con el registro suprimido.
+

@@ -18,6 +18,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// dummyBcryptHash es un hash bcrypt válido precalculado (costo 10)
+// para garantizar tiempo de cómputo constante y mitigar ataques de temporización (timing attacks)
+// cuando una cédula/usuario no existe en la base de datos (OWASP A07).
+const dummyBcryptHash = "$2a$10$wN9iL6UfZjO53Kq5B6EaVOXw46U6vK2u0d17FhJ9y3T2QkL3bNfOi"
+
 type VerificarRequest struct {
 	Cedula          string  `json:"cedula"`
 	FechaExpedicion *string `json:"fecha_expedicion,omitempty"`
@@ -266,6 +271,8 @@ func (s *authService) Login(ctx context.Context, req LoginRequest) (*LoginRespon
 
 	credencialesInvalidas := false
 	if postulante == nil {
+		// Mitigación de Timing Attack: cómputo constante con dummy hash
+		_ = bcrypt.CompareHashAndPassword([]byte(dummyBcryptHash), []byte(req.Password))
 		credencialesInvalidas = true
 	} else if err := bcrypt.CompareHashAndPassword([]byte(postulante.PasswordHash), []byte(req.Password)); err != nil {
 		credencialesInvalidas = true

@@ -22,3 +22,4 @@ if ($LASTEXITCODE -ne 0) {
 } else {
     Write-Host "`nPrueba finalizada." -ForegroundColor Green
 }
+

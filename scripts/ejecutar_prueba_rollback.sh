@@ -16,3 +16,4 @@ echo "Ejecutando db/prueba_rollback.sql en PostgreSQL..."
 docker compose exec -T postgres psql -U biess -d srpd_biess < db/prueba_rollback.sql
 
 echo "Demostración de ROLLBACK finalizada."
+

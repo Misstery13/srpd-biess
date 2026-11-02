@@ -88,3 +88,4 @@ SELECT
 \echo ''
 \echo 'CONCLUSIÓN: No quedaron filas huérfanas ni cabeceras incompletas en la base de datos.'
 \echo '========================================================================'
+
