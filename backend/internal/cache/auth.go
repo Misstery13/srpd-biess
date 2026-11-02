@@ -11,9 +11,9 @@ import (
 )
 
 const (
-	IntentosBloqueoTTL = 600 * time.Second  // 10 minutos (S4)
-	VerificadoTTL      = 600 * time.Second  // 10 minutos (para permitir completar paso 2)
-	ResetTokenTTL      = 900 * time.Second  // 15 minutos (I3)
+	IntentosBloqueoTTL = 600 * time.Second // 10 minutos (S4)
+	VerificadoTTL      = 600 * time.Second // 10 minutos (para permitir completar paso 2)
+	ResetTokenTTL      = 900 * time.Second // 15 minutos (I3)
 	MaxIntentos        = 3
 )
 
@@ -31,18 +31,41 @@ type AuthCache interface {
 }
 
 type redisAuthCache struct {
-	rdb *redis.Client
+	rdb    *redis.Client
+	secret string
+	aesKey []byte
 }
 
-func NewAuthCache(rdb *redis.Client) AuthCache {
-	return &redisAuthCache{rdb: rdb}
+// NewAuthCache crea una instancia de caché respaldada por Redis con soporte para
+// cifrado AES-256-GCM y pseudonimización de identificadores sensibles (Issue #24).
+func NewAuthCache(rdb *redis.Client, secrets ...string) AuthCache {
+	sec := "srpd-biess-secure-cache-secret-default-key-2026"
+	if len(secrets) > 0 && secrets[0] != "" {
+		sec = secrets[0]
+	}
+	return &redisAuthCache{
+		rdb:    rdb,
+		secret: sec,
+		aesKey: DerivarClaveAES32(sec),
+	}
+}
+
+func (c *redisAuthCache) keyIntentos(tipo, cedula string) string {
+	// Pseudonimización HMAC-SHA256 para no exponer la cédula en texto plano en las claves de Redis
+	pseudo := PseudonimizarClave(c.secret, cedula)
+	return fmt.Sprintf("intentos:%s:%s", tipo, pseudo)
+}
+
+func (c *redisAuthCache) keyVerificado(cedula string) string {
+	pseudo := PseudonimizarClave(c.secret, cedula)
+	return fmt.Sprintf("registro:verificado:%s", pseudo)
 }
 
 func (c *redisAuthCache) IncrementarIntentos(ctx context.Context, tipo, cedula string) (int64, error) {
 	if c.rdb == nil {
 		return 0, ErrRedisNoDisponible
 	}
-	key := fmt.Sprintf("intentos:%s:%s", tipo, cedula)
+	key := c.keyIntentos(tipo, cedula)
 
 	pipe := c.rdb.TxPipeline()
 	incr := pipe.Incr(ctx, key)
@@ -59,7 +82,7 @@ func (c *redisAuthCache) EstaBloqueado(ctx context.Context, tipo, cedula string)
 	if c.rdb == nil {
 		return false, ErrRedisNoDisponible
 	}
-	key := fmt.Sprintf("intentos:%s:%s", tipo, cedula)
+	key := c.keyIntentos(tipo, cedula)
 
 	val, err := c.rdb.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
@@ -81,7 +104,7 @@ func (c *redisAuthCache) ReiniciarIntentos(ctx context.Context, tipo, cedula str
 	if c.rdb == nil {
 		return nil
 	}
-	key := fmt.Sprintf("intentos:%s:%s", tipo, cedula)
+	key := c.keyIntentos(tipo, cedula)
 	return c.rdb.Del(ctx, key).Err()
 }
 
@@ -89,7 +112,7 @@ func (c *redisAuthCache) GuardarVerificado(ctx context.Context, cedula string) e
 	if c.rdb == nil {
 		return ErrRedisNoDisponible
 	}
-	key := fmt.Sprintf("registro:verificado:%s", cedula)
+	key := c.keyVerificado(cedula)
 	return c.rdb.Set(ctx, key, "1", VerificadoTTL).Err()
 }
 
@@ -97,7 +120,7 @@ func (c *redisAuthCache) EsVerificado(ctx context.Context, cedula string) (bool,
 	if c.rdb == nil {
 		return false, ErrRedisNoDisponible
 	}
-	key := fmt.Sprintf("registro:verificado:%s", cedula)
+	key := c.keyVerificado(cedula)
 	n, err := c.rdb.Exists(ctx, key).Result()
 	if err != nil {
 		return false, err
@@ -109,7 +132,7 @@ func (c *redisAuthCache) BorrarVerificado(ctx context.Context, cedula string) er
 	if c.rdb == nil {
 		return nil
 	}
-	key := fmt.Sprintf("registro:verificado:%s", cedula)
+	key := c.keyVerificado(cedula)
 	return c.rdb.Del(ctx, key).Err()
 }
 
@@ -117,8 +140,15 @@ func (c *redisAuthCache) GuardarResetToken(ctx context.Context, token, cedula st
 	if c.rdb == nil {
 		return ErrRedisNoDisponible
 	}
+
+	// LOPDP / OWASP A02: Cifrado autenticado AES-256-GCM antes de persistir en Redis
+	cifrado, err := CifrarAESGCM(c.aesKey, cedula)
+	if err != nil {
+		return fmt.Errorf("error al cifrar dato sensible para cache: %w", err)
+	}
+
 	key := fmt.Sprintf("reset:%s", token)
-	return c.rdb.Set(ctx, key, cedula, ResetTokenTTL).Err()
+	return c.rdb.Set(ctx, key, cifrado, ResetTokenTTL).Err()
 }
 
 func (c *redisAuthCache) ObtenerYBorrarResetToken(ctx context.Context, token string) (string, error) {
@@ -126,7 +156,7 @@ func (c *redisAuthCache) ObtenerYBorrarResetToken(ctx context.Context, token str
 		return "", ErrRedisNoDisponible
 	}
 	key := fmt.Sprintf("reset:%s", token)
-	cedula, err := c.rdb.Get(ctx, key).Result()
+	cifrado, err := c.rdb.Get(ctx, key).Result()
 	if errors.Is(err, redis.Nil) {
 		return "", nil
 	}
@@ -136,5 +166,13 @@ func (c *redisAuthCache) ObtenerYBorrarResetToken(ctx context.Context, token str
 
 	// De un solo uso: se borra de inmediato (I3)
 	_ = c.rdb.Del(ctx, key).Err()
-	return cedula, nil
+
+	// Descifrado autenticado AES-256-GCM
+	descifrado, err := DescifrarAESGCM(c.aesKey, cifrado)
+	if err != nil {
+		// Fallback compatible por si el token existía en texto plano
+		return cifrado, nil
+	}
+
+	return descifrado, nil
 }

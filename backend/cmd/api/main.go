@@ -75,14 +75,16 @@ func main() {
 	rcRepo := repository.NewRegistroCivilRepository(pgPool)
 	postRepo := repository.NewPostulanteRepository(pgPool)
 	permisoRepo := repository.NewPermisoRepository(pgPool)
-	authCache := cache.NewAuthCache(redisClient)
+	cachedPermisoRepo := cache.NewCachedPermisoRepository(permisoRepo, redisClient)
+	authCache := cache.NewAuthCache(redisClient, cfg.JWTSecret)
 	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
 	authSvc := service.NewAuthService(rcRepo, postRepo, authCache, emailSvc, cfg.JWTSecret)
 	authHdl := handler.NewAuthHandler(authSvc)
 
-	// Periodo de postulación (T2)
+	// Periodo de postulación (T2, con caché en Redis para optimización de consultas - Issue #24)
 	periodoRepo := repository.NewPeriodoRepository(pgPool)
-	periodoSvc := service.NewPeriodoService(periodoRepo)
+	cachedPeriodoRepo := cache.NewCachedPeriodoRepository(periodoRepo, redisClient)
+	periodoSvc := service.NewPeriodoService(cachedPeriodoRepo)
 	periodoHdl := handler.NewPeriodoHandler(periodoSvc)
 
 	// Postulante y Postulación (EF-12, Issue #11)
@@ -142,7 +144,7 @@ func main() {
 	// Rutas protegidas de postulante (Requieren JWT y validación RBAC - R3, R4)
 	postulanteGroup := router.Group("/api/postulante")
 	postulanteGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
-	postulanteGroup.Use(handler.RBACMiddleware(permisoRepo))
+	postulanteGroup.Use(handler.RBACMiddleware(cachedPermisoRepo))
 	{
 		postulanteGroup.GET("/me", postulanteHdl.ObtenerPerfil)
 		postulanteGroup.DELETE("/me", postulanteHdl.SuprimirCuenta)
@@ -151,7 +153,7 @@ func main() {
 	// Rutas protegidas de postulación (Requieren JWT y validación RBAC - R3, R4)
 	postulacionGroup := router.Group("/api/postulacion")
 	postulacionGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
-	postulacionGroup.Use(handler.RBACMiddleware(permisoRepo))
+	postulacionGroup.Use(handler.RBACMiddleware(cachedPermisoRepo))
 	{
 		postulacionGroup.POST("/validar-cargo", postulacionHdl.ValidarCargo)
 		postulacionGroup.GET("", postulacionHdl.Obtener)
