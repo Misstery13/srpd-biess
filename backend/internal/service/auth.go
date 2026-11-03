@@ -181,7 +181,7 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 		return NewErrValidacion("La contraseña debe tener al menos 8 caracteres e incluir letras y números")
 	}
 
-	if req.Email == "" || !strings.Contains(req.Email, "@") {
+	if !EmailValido(req.Email) {
 		return NewErrValidacion("El correo electrónico no es válido")
 	}
 

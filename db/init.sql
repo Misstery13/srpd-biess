@@ -15,14 +15,16 @@ CREATE TABLE provincias (
     id      SERIAL PRIMARY KEY,
     pais_id INT NOT NULL REFERENCES paises(id),
     nombre  VARCHAR(80) NOT NULL,
-    UNIQUE (pais_id, nombre)
+    UNIQUE (pais_id, nombre),
+    UNIQUE (id, pais_id)          -- destino de la FK compuesta de domicilios
 );
 
 CREATE TABLE cantones (
     id           SERIAL PRIMARY KEY,
     provincia_id INT NOT NULL REFERENCES provincias(id),
     nombre       VARCHAR(80) NOT NULL,
-    UNIQUE (provincia_id, nombre)
+    UNIQUE (provincia_id, nombre),
+    UNIQUE (id, provincia_id)     -- destino de la FK compuesta de domicilios
 );
 
 -- =========================================================
@@ -128,7 +130,11 @@ CREATE TABLE domicilios (
     sector           VARCHAR(100),
     referencia       VARCHAR(255),
     telefono         VARCHAR(15),
-    CHECK (canton_id IS NOT NULL OR ciudad_texto IS NOT NULL)
+    CHECK (canton_id IS NOT NULL OR ciudad_texto IS NOT NULL),
+    -- Ecuador: provincia y cantón van juntos; el cantón es de esa provincia y la provincia de ese país
+    CHECK ((provincia_id IS NULL) = (canton_id IS NULL)),
+    FOREIGN KEY (provincia_id, pais_id) REFERENCES provincias (id, pais_id),
+    FOREIGN KEY (canton_id, provincia_id) REFERENCES cantones (id, provincia_id)
 );
 
 CREATE TABLE familiares_iess (

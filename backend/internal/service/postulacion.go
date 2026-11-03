@@ -270,6 +270,19 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 		p.Cargo = &c
 	}
 
+	// Obligatorios y formato de textos, teléfonos y fechas de todas las secciones
+	perfil, err := s.postulanteRepo.ObtenerDetalleRegistroCivil(ctx, postulanteID)
+	if err != nil {
+		return "", err
+	}
+	emailRegistrado := ""
+	if perfil != nil {
+		emailRegistrado = perfil.Email
+	}
+	if err := validarCampos(p, emailRegistrado); err != nil {
+		return "", err
+	}
+
 	// 6: Campos obligatorios de respaldo organizacional (1.4.x.3.1.1 y 1.4.x.3.1.2)
 	if p.RespaldoOrg != nil && *p.RespaldoOrg {
 		if p.OrgNombre == nil || strings.TrimSpace(*p.OrgNombre) == "" {

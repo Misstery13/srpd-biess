@@ -64,3 +64,37 @@ export const validarPassword = (password, confirmar) => {
   if (password !== confirmar) errores.confirmar = 'Las contraseñas no coinciden.'
   return errores
 }
+
+// ===== Formatos de los campos de EF-12 (mismas reglas en backend/internal/service/campos.go) =====
+// Nombres de personas y lugares: solo letras, espacios, apóstrofo, punto y guion; al menos 2 letras
+export const esNombre = (t) => /^[\p{L}\p{M}' .-]+$/u.test(t) && (t.match(/\p{L}/gu) ?? []).length >= 2
+// Texto general (instituciones, títulos, cargos, calles…): letras, números y puntuación común; debe tener letras
+export const esTexto = (t) => /^[\p{L}\p{M}\p{N}\s.,;:()'"&/#°º+¿?¡!@_–-]+$/u.test(t) && /\p{L}/u.test(t)
+// Número de casa: letras, números, espacio, / . - y al menos un dígito (o S/N)
+export const esNumeroCasa = (t) => /^s\/?n$/i.test(t) || (/^[\p{L}\p{N} /.-]+$/u.test(t) && /\d/.test(t))
+// Registro SENESCYT: letras, números y guiones, con al menos un dígito (p. ej. 1005-2018-1234567)
+export const esSenescyt = (t) => /^[A-Za-z0-9-]+$/.test(t) && /\d/.test(t)
+// Ecuador: celular 09XXXXXXXX y fijo 0[2-7]XXXXXXX; otro país: 7 a 15 dígitos con + opcional
+export const esCelular = (t, ecuador) => (ecuador ? /^09\d{8}$/ : /^\+?\d{7,15}$/).test(t)
+export const esTelefonoFijo = (t, ecuador) => (ecuador ? /^0[2-7]\d{7}$/ : /^\+?\d{7,15}$/).test(t)
+// Fechas de <input type="date"> (YYYY-MM-DD): entre 1900 y hoy
+export const fechaEnRango = (f, hoy) => f >= '1900-01-01' && f <= hoy
+
+// Filtros mientras se escribe
+export const sinDigitos = (t) => t.replace(/\d/g, '')
+export const soloTelefono = (t) => t.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '')
+export const soloDigitos = (t) => t.replace(/\D/g, '')
+
+const MENSAJES = {
+  nombre: 'Use solo letras (sin números ni símbolos).',
+  texto: 'Debe contener letras; no use solo números ni símbolos como < > { } $ % * =.',
+}
+const VALIDADORES = { nombre: esNombre, texto: esTexto }
+
+// Agrega a `e` el error de un campo de texto: vacío (si es obligatorio) o con formato inválido
+export function revisarTexto(e, campo, valor, { vacio, formato = 'texto' } = {}) {
+  const v = (valor ?? '').trim()
+  if (!v) {
+    if (vacio) e[campo] = vacio
+  } else if (!VALIDADORES[formato](v)) e[campo] = MENSAJES[formato]
+}
