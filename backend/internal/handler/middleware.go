@@ -41,7 +41,7 @@ func ErrorMiddleware() gin.HandlerFunc {
 				case "23505": // unique_violation -> 409
 					c.JSON(http.StatusConflict, gin.H{"error": "El registro ya existe o se encuentra duplicado."})
 					return
-				case "23514": // check_violation -> 400
+				case "23514", "22001": // check_violation o texto más largo que la columna (O4) -> 400
 					c.JSON(http.StatusBadRequest, gin.H{"error": "Uno o más campos no cumplen con las restricciones permitidas."})
 					return
 				case "23503": // foreign_key_violation -> 400
