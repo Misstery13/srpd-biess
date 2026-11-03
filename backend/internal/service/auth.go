@@ -187,7 +187,7 @@ func validarCamposRegistro(req RegistrarRequest) error {
 	if !ValidarPassword(req.Password) {
 		return NewErrValidacion("La contraseña debe tener al menos 8 caracteres e incluir letras y números")
 	}
-	if req.Email == "" || !strings.Contains(req.Email, "@") {
+	if !EmailValido(req.Email) {
 		return NewErrValidacion("El correo electrónico no es válido")
 	}
 	return nil

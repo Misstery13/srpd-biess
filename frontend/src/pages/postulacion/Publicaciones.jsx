@@ -4,17 +4,18 @@ import { Campo, Seleccion, SiNo } from '../../components/Formulario.jsx'
 import ListaEditable from '../../components/ListaEditable.jsx'
 import { aFechaApi, deFechaApi, LIMITE_GENERAL, TIPOS_PUBLICACION } from '../../utils/ef12.js'
 import { fechaUI, hoy, nombreOpcion } from './comun.js'
+import { fechaEnRango, revisarTexto } from '../../utils/validaciones.js'
 import Seccion from './Seccion.jsx'
 
 const nuevo = () => ({ titulo: '', tipo: '', medio: '', fecha: '', relacion_profesional: null, documento: null })
 
 function validar(f) {
   const e = {}
-  if (!f.titulo.trim()) e.titulo = 'Ingrese el título de la publicación o trabajo de investigación.'
+  revisarTexto(e, 'titulo', f.titulo, { vacio: 'Ingrese el título de la publicación o trabajo de investigación.' })
   if (!TIPOS_PUBLICACION.some(([c]) => c === f.tipo)) e.tipo = 'Seleccione el tipo.'
-  if (!f.medio.trim()) e.medio = 'Ingrese el medio de publicación.'
+  revisarTexto(e, 'medio', f.medio, { vacio: 'Ingrese el medio de publicación.' })
   if (!f.fecha) e.fecha = 'Ingrese la fecha de publicación.'
-  else if (f.fecha > hoy()) e.fecha = 'La fecha no puede ser futura.'
+  else if (!fechaEnRango(f.fecha, hoy())) e.fecha = 'Ingrese una fecha entre 1900 y hoy (no futura).'
   if (f.relacion_profesional === null) e.relacion_profesional = 'Responda Si o No.'
   if (!f.documento) e.documento = 'Cargue el documento de respaldo.'
   return e
@@ -29,7 +30,7 @@ function FormPublicacion({ valor, onChange, errores }) {
       </div>
       <Seleccion id="pub-tipo" etiqueta="Tipo" opciones={TIPOS_PUBLICACION} required value={valor.tipo} onChange={set('tipo')} error={errores.tipo} />
       <Campo id="pub-medio" etiqueta="Medio de publicación" maxLength={200} required value={valor.medio} onChange={set('medio')} error={errores.medio} />
-      <Campo id="pub-fecha" etiqueta="Fecha de publicación" type="date" max={hoy()} required value={valor.fecha} onChange={set('fecha')} error={errores.fecha} />
+      <Campo id="pub-fecha" etiqueta="Fecha de publicación" type="date" min="1900-01-01" max={hoy()} required value={valor.fecha} onChange={set('fecha')} error={errores.fecha} />
       <SiNo id="pub-relacion" pregunta="¿Guarda relación con el campo de su ejercicio o formación profesional?" value={valor.relacion_profesional} onChange={set('relacion_profesional')} error={errores.relacion_profesional} />
       <div className="sm:col-span-2">
         <CampoPDF id="pub-documento" etiqueta="Documento de respaldo" tipo="PUBLICACION" limite={LIMITE_GENERAL} obligatorio value={valor.documento} onChange={set('documento')} error={errores.documento} />
