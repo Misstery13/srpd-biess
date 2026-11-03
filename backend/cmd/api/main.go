@@ -123,7 +123,6 @@ func registerAppRoutes(router *gin.Engine, cfg *config.Config, pgPool *pgxpool.P
 	rcRepo := repository.NewRegistroCivilRepository(pgPool)
 	postRepo := repository.NewPostulanteRepository(pgPool)
 	permisoRepo := repository.NewPermisoRepository(pgPool)
-	cachedPermisoRepo := cache.NewCachedPermisoRepository(permisoRepo, rdb)
 	authCache := cache.NewAuthCache(rdb, cfg.JWTSecret)
 	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
 	authSvc := service.NewAuthService(service.AuthConfig{
@@ -159,7 +158,7 @@ func registerAppRoutes(router *gin.Engine, cfg *config.Config, pgPool *pgxpool.P
 
 	postulanteGroup := router.Group("/api/postulante")
 	postulanteGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
-	postulanteGroup.Use(handler.RBACMiddleware(cachedPermisoRepo))
+	postulanteGroup.Use(handler.RBACMiddleware(permisoRepo))
 	{
 		postulanteGroup.GET("/me", postulanteHdl.ObtenerPerfil)
 		postulanteGroup.DELETE("/me", postulanteHdl.SuprimirCuenta)
@@ -167,7 +166,7 @@ func registerAppRoutes(router *gin.Engine, cfg *config.Config, pgPool *pgxpool.P
 
 	postulacionGroup := router.Group("/api/postulacion")
 	postulacionGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
-	postulacionGroup.Use(handler.RBACMiddleware(cachedPermisoRepo))
+	postulacionGroup.Use(handler.RBACMiddleware(permisoRepo))
 	{
 		postulacionGroup.POST("/validar-cargo", postulacionHdl.ValidarCargo)
 		postulacionGroup.GET("", postulacionHdl.Obtener)

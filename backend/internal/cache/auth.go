@@ -149,15 +149,14 @@ func (c *redisAuthCache) ObtenerYBorrarResetToken(ctx context.Context, token str
 		return "", ErrRedisNoDisponible
 	}
 	key := fmt.Sprintf("reset:%s", token)
-	cifrado, err := c.rdb.Get(ctx, key).Result()
+	// GETDEL: leer y borrar en una sola operación atómica (token de un solo uso, I3)
+	cifrado, err := c.rdb.GetDel(ctx, key).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return "", nil
 		}
 		return "", err
 	}
-
-	_ = c.rdb.Del(ctx, key).Err()
 
 	descifrado, err := DescifrarAESGCM(c.aesKey, cifrado)
 	if err != nil {

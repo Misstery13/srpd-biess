@@ -22,7 +22,7 @@ Para el Concurso de Méritos del Directorio del BIESS, el guardado de la postula
 
 ### Implementación Oficial del Sistema
 La lógica transaccional está implementada directamente en el repositorio de Go:  
-👉 Ver código fuente en [`backend/internal/repository/postulacion.go`](file:///c:/Users/Gino/Proyectos/srpd-biess/backend/internal/repository/postulacion.go) (`GuardarTransaccional`).
+👉 Ver código fuente en [`backend/internal/repository/postulacion.go`](../../backend/internal/repository/postulacion.go) (`GuardarTransaccional`).
 
 El flujo inicia una transacción de base de datos con `r.pool.Begin(ctx)` y garantiza mediante `defer tx.Rollback(ctx)` que si ocurre cualquier error durante la inserción secuencial de cabecera o de alguna de las tablas hijas, la transacción se revierte íntegramente.
 
@@ -31,7 +31,7 @@ El flujo inicia una transacción de base de datos con `r.pool.Begin(ctx)` y gara
 ## 2. Validación de Consistencia y Demostración del ROLLBACK
 
 Para verificar la **atomicidad (propiedad ACID)** contra el código real del sistema y evitar duplicaciones de sentencias SQL, la validación se apoya en el test de integración de Go:
-👉 [`backend/internal/repository/postulacion_test.go`](file:///c:/Users/Gino/Proyectos/srpd-biess/backend/internal/repository/postulacion_test.go) (`TestPostulacionRepository_TransaccionalYRollback`).
+👉 [`backend/internal/repository/postulacion_test.go`](../../backend/internal/repository/postulacion_test.go) (`TestPostulacionRepository_TransaccionalYRollback`).
 
 ### Metodología de la Prueba:
 1. Registra un postulante temporal de prueba y guarda una postulación completa con éxito en estado `BORRADOR`.
