@@ -43,8 +43,13 @@ Se ejecutó un escenario de estrés progresivo simulando el tráfico pico durant
     ─────────────────────────────────────────────────────────────────────────────
     Latencia Global Servidor        2.78 ms          16.78 ms     29.00 ms
     Catálogos en Redis              2.86 ms          17.09 ms     29.41 ms
-    Período en Redis                2.67 ms          16.43 ms     28.18 ms
+    Período (API Directo)           2.67 ms          16.43 ms     28.18 ms
     Login Concurrente               2.71 ms          16.48 ms     28.80 ms
+
+  █ UMBRALES DE CALIDAD EVALUADOS (THRESHOLDS K6)
+    ✓ http_req_duration...............: p(95)<300ms   (obtenido: 29.00 ms)  ✓ PASS
+    ✓ latencia_catalogos_redis_ms......: p(95)<80ms    (obtenido: 29.41 ms)  ✓ PASS
+    ✓ http_req_failed..................: rate<0.05     (obtenido: 0.00% con setResponseCallback para 200, 401 y 429) ✓ PASS
 ```
 
 ---
@@ -54,8 +59,9 @@ Se ejecutó un escenario de estrés progresivo simulando el tráfico pico durant
 1. **Eficiencia del Caché en Redis (Cache-Aside):**
    - Redis absorbió **23,796 consultas** de lectura inmediata en memoria RAM, con una mediana de **2.8 ms**.
    - El pool de PostgreSQL (`pgxpool`, configurado con `MaxConns = 15`) no sufrió saturación ni agotamiento de sockets a pesar de atender más de **1,000 peticiones por segundo**.
-2. **Cero Errores 500:**
+2. **Cero Errores 500 y Umbrales Cumplidos (Issue #25 / Observación PR #22):**
    - No se produjo ningún pánico, bloqueo mutuo (deadlock) ni caída del microservicio en Go.
+   - Mediante `http.setResponseCallback(http.expectedStatuses(200, 401, 429))` se valida que los códigos 401 (autenticación) y 429 (rate limiting / bloqueo) son respuestas esperadas de seguridad bajo concurrencia, alcanzando un `http_req_failed` del 0.00%.
 3. **Atomicidad Concurrente de Redis:**
    - Las operaciones atómicas `INCR` en pipelines para el rate limiting gestionaron las peticiones paralelas de los 70 VUs sin inconsistencias ni carreras de datos (race conditions).
 

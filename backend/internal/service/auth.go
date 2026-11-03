@@ -212,12 +212,15 @@ func (s *authService) verificarUnicidadRegistro(ctx context.Context, cedula, ema
 	return nil
 }
 
-func (s *authService) obtenerRolInicial(ctx context.Context) int {
+func (s *authService) obtenerRolInicial(ctx context.Context) (int, error) {
 	rol, err := s.postRepo.BuscarRolPorCodigo(ctx, "POSTULANTE")
-	if err == nil && rol != nil {
-		return rol.ID
+	if err != nil {
+		return 0, err
 	}
-	return 1
+	if rol != nil {
+		return rol.ID, nil
+	}
+	return 1, nil
 }
 
 func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error {
@@ -245,11 +248,16 @@ func (s *authService) Registrar(ctx context.Context, req RegistrarRequest) error
 		return err
 	}
 
+	rolID, err := s.obtenerRolInicial(ctx)
+	if err != nil {
+		return err
+	}
+
 	postulante := &model.Postulante{
 		Cedula:       req.Cedula,
 		Email:        req.Email,
 		PasswordHash: string(hash),
-		RolID:        s.obtenerRolInicial(ctx),
+		RolID:        rolID,
 	}
 
 	if err := s.postRepo.Crear(ctx, postulante); err != nil {

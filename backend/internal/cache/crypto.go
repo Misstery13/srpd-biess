@@ -95,4 +95,3 @@ func PseudonimizarClave(secret, identificador string) string {
 	// Truncado seguro a 16 bytes en hexadecimal (32 caracteres) para optimizar memoria en Redis
 	return hex.EncodeToString(hash[:16])
 }
-

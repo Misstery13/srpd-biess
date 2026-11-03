@@ -10,6 +10,10 @@ import { Trend, Counter } from 'k6/metrics';
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:8080';
 
+// Configurar códigos HTTP esperados para que 401 (rechazo auth) y 429 (rate limiting / bloqueo)
+// no sean considerados fallos de red en http_req_failed por k6 (Issue #25)
+http.setResponseCallback(http.expectedStatuses(200, 401, 429));
+
 // Métricas personalizadas para medir el impacto de la memoria y la base de datos
 const trendCatalogos = new Trend('latencia_catalogos_redis_ms', true);
 const trendPeriodo = new Trend('latencia_periodo_redis_ms', true);

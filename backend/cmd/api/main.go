@@ -144,10 +144,9 @@ func registerAppRoutes(router *gin.Engine, cfg *config.Config, pgPool *pgxpool.P
 		authGroup.POST("/restablecer", authHdl.Restablecer)
 	}
 
-	// Periodo (T2)
+	// Periodo (T2 - Consulta directa a BD sin caché para reflejar apertura/cierre en tiempo real)
 	periodoRepo := repository.NewPeriodoRepository(pgPool)
-	cachedPeriodoRepo := cache.NewCachedPeriodoRepository(periodoRepo, rdb)
-	periodoSvc := service.NewPeriodoService(cachedPeriodoRepo)
+	periodoSvc := service.NewPeriodoService(periodoRepo)
 	periodoHdl := handler.NewPeriodoHandler(periodoSvc)
 	router.GET("/api/periodo", periodoHdl.ObtenerPeriodo)
 

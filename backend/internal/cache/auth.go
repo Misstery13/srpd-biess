@@ -31,32 +31,30 @@ type AuthCache interface {
 }
 
 type redisAuthCache struct {
-	rdb    *redis.Client
-	secret string
-	aesKey []byte
+	rdb        *redis.Client
+	hmacSecret string
+	aesKey     []byte
 }
 
 // NewAuthCache crea una instancia de caché respaldada por Redis con soporte para
 // cifrado AES-256-GCM y pseudonimización de identificadores sensibles (Issue #24).
+// Utiliza derivación de claves con dominios separados para AES y HMAC.
 func NewAuthCache(rdb *redis.Client, secret string) AuthCache {
-	if secret == "" {
-		secret = "srpd-biess-secure-cache-secret-default-key-2026"
-	}
 	return &redisAuthCache{
-		rdb:    rdb,
-		secret: secret,
-		aesKey: DerivarClaveAES32(secret),
+		rdb:        rdb,
+		hmacSecret: "hmac|" + secret,
+		aesKey:     DerivarClaveAES32("aes|" + secret),
 	}
 }
 
 func (c *redisAuthCache) keyIntentos(tipo, cedula string) string {
 	// Pseudonimización HMAC-SHA256 para no exponer la cédula en texto plano en las claves de Redis
-	pseudo := PseudonimizarClave(c.secret, cedula)
+	pseudo := PseudonimizarClave(c.hmacSecret, cedula)
 	return fmt.Sprintf("intentos:%s:%s", tipo, pseudo)
 }
 
 func (c *redisAuthCache) keyVerificado(cedula string) string {
-	pseudo := PseudonimizarClave(c.secret, cedula)
+	pseudo := PseudonimizarClave(c.hmacSecret, cedula)
 	return fmt.Sprintf("registro:verificado:%s", pseudo)
 }
 
@@ -163,7 +161,8 @@ func (c *redisAuthCache) ObtenerYBorrarResetToken(ctx context.Context, token str
 
 	descifrado, err := DescifrarAESGCM(c.aesKey, cifrado)
 	if err != nil {
-		return cifrado, nil
+		// Token corrupto o manipulado: se invalida
+		return "", nil
 	}
 	return descifrado, nil
 }
