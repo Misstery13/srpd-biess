@@ -51,14 +51,14 @@ if ($hasGo) {
     $testExit = $LASTEXITCODE
     Pop-Location
 } else {
-    Write-Host "'go' no detectado en el host. Ejecutando mediante contenedor Docker golang:1.24-alpine..."
+    Write-Host "'go' no detectado en el host. Ejecutando mediante contenedor Docker golang:1.26-alpine..."
     $postgresId = (docker compose ps -q postgres).Trim()
     $network = (docker inspect -f "{{range `$k, `$v := .NetworkSettings.Networks}}{{`$k}}{{end}}" $postgresId).Trim()
     $currentDir = (Get-Location).Path
     $backendPath = Join-Path $currentDir "backend"
 
-    $dockerCmd = "docker run --rm --network $network -e POSTGRES_HOST=postgres -e POSTGRES_PORT=5432 -e POSTGRES_USER=biess -e POSTGRES_PASSWORD=biess -e POSTGRES_DB=srpd_biess -v `"${backendPath}:/src`" -w /src golang:1.24-alpine go test -count=1 -v -run TestPostulacionRepository_TransaccionalYRollback ./internal/repository 2>&1"
-    $testOutput = Invoke-Expression $dockerCmd
+    # La imagen debe tener la version de Go que pide backend/go.mod (1.26)
+    $testOutput = docker run --rm --network $network -e POSTGRES_HOST=postgres -e POSTGRES_PORT=5432 -e POSTGRES_USER=biess -e POSTGRES_PASSWORD=biess -e POSTGRES_DB=srpd_biess -v "${backendPath}:/src" -w /src golang:1.26-alpine go test -count=1 -v -run TestPostulacionRepository_TransaccionalYRollback ./internal/repository 2>&1
     $testExit = $LASTEXITCODE
 }
 

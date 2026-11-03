@@ -6,6 +6,8 @@
 # ==============================================================================
 
 set -euo pipefail
+# Git Bash (Windows) convierte rutas como /src en C:/Program Files/Git/src; esto lo evita
+export MSYS_NO_PATHCONV=1
 
 echo "======================================================================"
 echo " SRPD BIESS — Validación de Atomicidad y ROLLBACK Transaccional (Go)"
@@ -49,7 +51,7 @@ if command -v go >/dev/null 2>&1; then
     TEST_EXIT=$?
     set -e
 else
-    echo "'go' no detectado en el host. Ejecutando mediante contenedor Docker golang:1.24-alpine..."
+    echo "'go' no detectado en el host. Ejecutando mediante contenedor Docker golang:1.26-alpine..."
     PG_CONTAINER_ID=$(docker compose ps -q postgres)
     DOCKER_NET=$(docker inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}' "$PG_CONTAINER_ID")
     REPO_DIR="$(pwd)"
@@ -63,7 +65,7 @@ else
         -e POSTGRES_DB="${POSTGRES_DB:-srpd_biess}" \
         -v "$REPO_DIR/backend:/src" \
         -w /src \
-        golang:1.24-alpine \
+        golang:1.26-alpine \
         go test -count=1 -v -run TestPostulacionRepository_TransaccionalYRollback ./internal/repository 2>&1)
     TEST_EXIT=$?
     set -e
