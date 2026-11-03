@@ -253,7 +253,8 @@ await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].sli
 ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 sigue deshabilitado con 4 de 5')
 await js(`document.querySelectorAll('${V} [data-consentimiento] input')[4].click()`)
 await esperar(100)
-await clic(`${V} [data-enviar]`, 700)
+// El envío espera al correo de confirmación (SMTP síncrono): en modo desarrollo tarda ~1 s
+await clic(`${V} [data-enviar]`, 2500)
 ok((await texto(`${V} output`))?.includes('BIESS-2026-000001 fue enviada'), '1.10.3 postulación enviada')
 ok(await js(`document.querySelector('[data-seccion=domicilio] fieldset').disabled`), 'P3 enviada: formulario en solo lectura')
 ok(await existe(String.raw`article.print\:block`), '1.10.2 formulario imprimible con firma, nombres y cédula')
