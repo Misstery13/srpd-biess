@@ -58,7 +58,7 @@ export default function Cargo({ postulacion, guardar, soloLectura, onCierre }) {
         </legend>
         <div className="flex flex-col gap-2">
           {CARGOS.map((c) => (
-            <label key={c.codigo} className="flex items-start gap-2 rounded-md border border-slate-200 p-3 text-sm has-checked:border-emerald-600 has-checked:bg-emerald-50">
+            <label key={c.codigo} className="flex items-start gap-2 rounded-md border border-slate-200 p-3 text-sm has-checked:border-marca-600 has-checked:bg-marca-50">
               <input type="radio" name="cargo" value={c.codigo} checked={cargo === c.codigo} onChange={() => setCargo(c.codigo)} className="mt-1" />
               {c.nombre}
             </label>

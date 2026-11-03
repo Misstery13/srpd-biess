@@ -65,7 +65,7 @@ export default function Registro() {
         </form>
         <p className="mt-4 text-sm">
           ¿Ya tiene cuenta?{' '}
-          <Link to="/login" className="text-emerald-800 underline">
+          <Link to="/login" className="font-medium text-marca-700 hover:underline">
             Iniciar sesión
           </Link>
         </p>

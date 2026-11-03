@@ -37,8 +37,8 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
     })
 
   return (
-    <section className="rounded-lg bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold">Guardar y enviar postulación</h2>
+    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
+      <h2 className="text-lg font-semibold text-marca-950">Guardar y enviar postulación</h2>
 
       {enviada ? (
         <div className="mt-4 flex flex-col gap-3">
@@ -61,7 +61,7 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
           )}
 
           <div>
-            <button type="button" onClick={guardarPostulacion} className={`${boton} bg-emerald-700 text-white hover:bg-emerald-800`}>
+            <button type="button" onClick={guardarPostulacion} className={`${boton} bg-marca-700 text-white hover:bg-marca-800`}>
               Guardar Postulación
             </button>
           </div>
@@ -88,7 +88,7 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
                   type="button"
                   onClick={enviar}
                   disabled={!aceptados.every(Boolean) || pendientes.length > 0}
-                  className={`${boton} bg-emerald-700 text-white hover:bg-emerald-800`}
+                  className={`${boton} bg-marca-700 text-white hover:bg-marca-800`}
                   data-enviar
                 >
                   {estado.cargando ? 'Enviando…' : 'Enviar Postulación'}

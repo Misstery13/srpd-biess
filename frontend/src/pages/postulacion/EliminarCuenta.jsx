@@ -24,7 +24,7 @@ export default function EliminarCuenta() {
   }
 
   return (
-    <section className="rounded-lg border border-red-200 bg-white p-6 shadow-sm print:hidden">
+    <section className="rounded-xl border border-red-200 bg-white p-5 shadow-sm sm:p-8 print:hidden">
       <h2 className="text-lg font-semibold text-red-800">Eliminar mi cuenta</h2>
       <p className="mt-1 text-sm text-slate-600">
         Se eliminarán su cuenta, su postulación, los datos de terceros que registró y los documentos cargados. Esta acción no se puede deshacer.

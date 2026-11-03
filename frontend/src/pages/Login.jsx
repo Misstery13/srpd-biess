@@ -73,10 +73,10 @@ export default function Login() {
         </Boton>
       </form>
       <div className="mt-4 flex justify-between text-sm">
-        <Link to="/recuperar" className="text-emerald-800 underline">
+        <Link to="/recuperar" className="font-medium text-marca-700 hover:underline">
           ¿Olvidaste tu contraseña?
         </Link>
-        <Link to="/registro" className="text-emerald-800 underline">
+        <Link to="/registro" className="font-medium text-marca-700 hover:underline">
           Registrarse
         </Link>
       </div>

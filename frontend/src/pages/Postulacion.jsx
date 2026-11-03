@@ -33,10 +33,10 @@ const SECCIONES = [
 function Cierre({ mensaje }) {
   const { cerrarSesion } = useAuth()
   return (
-    <section className="mx-auto max-w-xl rounded-lg bg-white p-6 shadow-sm" data-cierre>
-      <h1 className="mb-3 text-xl font-semibold">Postulación cerrada</h1>
+    <section className="mx-auto max-w-xl rounded-xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8" data-cierre>
+      <h1 className="mb-4 text-2xl font-semibold text-marca-950">Postulación cerrada</h1>
       <Alerta>{mensaje}</Alerta>
-      <button type="button" onClick={() => cerrarSesion()} className="mt-4 rounded-md bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800">
+      <button type="button" onClick={() => cerrarSesion()} className="mt-6 rounded-md bg-marca-600 px-5 py-2.5 font-semibold text-white shadow-sm hover:bg-marca-700">
         Salir
       </button>
     </section>
@@ -104,12 +104,18 @@ export default function Postulacion() {
 
   return (
     <>
-      <div className="flex flex-col gap-4 print:hidden">
-        <header className="flex flex-wrap items-baseline justify-between gap-2">
-          <h1 className="text-xl font-semibold">Formulario de postulación</h1>
+      <div className="flex flex-col gap-6 print:hidden">
+        <header className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-5">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-marca-600">Postulación en línea</p>
+            <h1 className="text-2xl font-semibold text-marca-950">Formulario de postulación</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {perfil.nombres} {perfil.apellidos} · C.I. {perfil.cedula}
+            </p>
+          </div>
           {postulacion?.codigo && (
-            <p className="text-sm text-slate-600">
-              Código: <strong data-codigo>{postulacion.codigo}</strong>
+            <p className="rounded-md border border-marca-200 bg-white px-3 py-2 text-sm text-slate-600">
+              Código de postulación <strong data-codigo className="ml-1 font-mono text-marca-800">{postulacion.codigo}</strong>
             </p>
           )}
         </header>
@@ -121,29 +127,36 @@ export default function Postulacion() {
         )}
         {enviada && <Alerta tipo="info">Su postulación fue enviada y ya no puede modificarse.</Alerta>}
 
-        <nav aria-label="Secciones del formulario" className="flex flex-wrap gap-2">
-          {SECCIONES.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => setActiva(s.id)}
-              aria-current={activa === s.id ? 'step' : undefined}
-              className="rounded-full border border-slate-300 px-3 py-1 text-sm aria-[current=step]:border-emerald-700 aria-[current=step]:bg-emerald-700 aria-[current=step]:text-white"
-            >
-              {s.listo(postulacion) && s.id !== 'personal' ? '✓ ' : ''}
-              {s.titulo}
-            </button>
-          ))}
-        </nav>
+        <div className="grid gap-6 lg:grid-cols-[15rem_1fr] lg:items-start">
+          {/* Celular: pestañas con desplazamiento horizontal. Computadora: menú lateral de pasos (número por CSS, fuera del texto) */}
+          <nav
+            aria-label="Secciones del formulario"
+            className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [counter-reset:paso] lg:sticky lg:top-6 lg:mx-0 lg:flex-col lg:gap-1 lg:overflow-visible lg:rounded-xl lg:border lg:border-slate-200 lg:bg-white lg:p-3"
+          >
+            {SECCIONES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => setActiva(s.id)}
+                aria-current={activa === s.id ? 'step' : undefined}
+                className="flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 [counter-increment:paso] before:hidden before:size-6 before:shrink-0 before:items-center before:justify-center before:rounded-full before:bg-slate-100 before:text-xs before:font-semibold before:text-slate-500 before:content-[counter(paso)] hover:border-marca-400 aria-[current=step]:border-marca-600 aria-[current=step]:bg-marca-600 aria-[current=step]:text-white lg:rounded-md lg:border-transparent lg:py-2 lg:text-left lg:before:flex lg:aria-[current=step]:bg-marca-50 lg:aria-[current=step]:font-medium lg:aria-[current=step]:text-marca-800 lg:aria-[current=step]:before:bg-marca-600 lg:aria-[current=step]:before:text-white"
+              >
+                {s.listo(postulacion) && s.id !== 'personal' ? '✓ ' : ''}
+                {s.titulo}
+              </button>
+            ))}
+          </nav>
 
-        {/* Todas montadas, solo una visible: cambiar de pestaña no pierde lo que no se guardó */}
-        {SECCIONES.map(({ id, Componente }) => (
-          <div key={id} hidden={activa !== id} data-seccion={id}>
-            {Componente ? <Componente {...props} /> : <Envio postulacion={postulacion} guardar={guardar} soloLectura={soloLectura} enviada={enviada} onEnviada={onEnviada} />}
+          <div className="flex min-w-0 flex-col gap-6">
+            {/* Todas montadas, solo una visible: cambiar de pestaña no pierde lo que no se guardó */}
+            {SECCIONES.map(({ id, Componente }) => (
+              <div key={id} hidden={activa !== id} data-seccion={id}>
+                {Componente ? <Componente {...props} /> : <Envio postulacion={postulacion} guardar={guardar} soloLectura={soloLectura} enviada={enviada} onEnviada={onEnviada} />}
+              </div>
+            ))}
+            <EliminarCuenta />
           </div>
-        ))}
-
-        <EliminarCuenta />
+        </div>
       </div>
       <Impresion perfil={perfil} postulacion={postulacion} />
     </>

@@ -47,7 +47,7 @@ export default function Recuperar() {
           </Boton>
         </form>
       )}
-      <Link to="/login" className="mt-4 inline-block text-sm text-emerald-800 underline">
+      <Link to="/login" className="mt-4 inline-block text-sm text-marca-800 underline">
         Volver a iniciar sesión
       </Link>
     </Tarjeta>

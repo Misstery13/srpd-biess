@@ -23,15 +23,17 @@ export default function Seccion({ titulo, descripcion, onGuardar, soloLectura, t
   }
 
   return (
-    <section className="rounded-lg bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold">{titulo}</h2>
-      {descripcion && <p className="mt-1 text-sm text-slate-500">{descripcion}</p>}
-      <form onSubmit={enviar} noValidate className="mt-4">
-        <fieldset disabled={soloLectura} className="flex min-w-0 flex-col gap-4">
+    <section className="rounded-xl border border-slate-200 bg-white shadow-sm">
+      <div className="border-b border-slate-200 px-5 py-4 sm:px-8">
+        <h2 className="text-lg font-semibold text-marca-950">{titulo}</h2>
+        {descripcion && <p className="mt-0.5 text-sm text-slate-500">{descripcion}</p>}
+      </div>
+      <form onSubmit={enviar} noValidate className="px-5 py-6 sm:px-8">
+        <fieldset disabled={soloLectura} className="flex min-w-0 flex-col gap-5">
           <Alerta>{estado.error}</Alerta>
           {children}
           {onGuardar && (
-            <div className="flex flex-wrap items-center gap-3 pt-2">
+            <div className="mt-2 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
               <div className="w-full sm:w-56">
                 <Boton cargando={estado.cargando}>{textoBoton}</Boton>
               </div>

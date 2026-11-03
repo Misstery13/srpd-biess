@@ -1,1 +1,44 @@
 @import "tailwindcss";
+
+/* Identidad del BIESS: azul institucional del logo; amarillo y rojo solo como acentos */
+@theme {
+  --color-marca-50: #eef5fc;
+  --color-marca-100: #d8e7f7;
+  --color-marca-200: #b1cfee;
+  --color-marca-300: #7aaee0;
+  --color-marca-400: #3d86cc;
+  --color-marca-500: #1a6ab8;
+  --color-marca-600: #0058a6; /* azul del logo */
+  --color-marca-700: #004b8e;
+  --color-marca-800: #003c73;
+  --color-marca-900: #002f5a;
+  --color-marca-950: #001d3a;
+  --color-acento-amarillo: #fcc200;
+  --color-acento-rojo: #e2163a;
+
+  /* Sin fuentes externas (L3 y CSP): pila del sistema */
+  --font-sans: "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+  }
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-marca-500;
+  }
+}
+
+/* Franja con los tres colores del logo */
+.franja-biess {
+  background: linear-gradient(90deg, var(--color-marca-600) 0 70%, var(--color-acento-amarillo) 70% 88%, var(--color-acento-rojo) 88% 100%);
+}
+
+@layer base {
+  input[type="radio"],
+  input[type="checkbox"] {
+    accent-color: var(--color-marca-600);
+    width: 1rem;
+    height: 1rem;
+  }
+}
