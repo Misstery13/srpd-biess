@@ -42,7 +42,8 @@ Lo que el documento no dice pero el desarrollo necesita. Si alguien no está de 
 | P3 | Estados: `BORRADOR` → `ENVIADA`. Una postulación `ENVIADA` ya no se edita. |
 | P4 | Guardar = **una transacción** que reemplaza las secciones (domicilio, familiares, formación, experiencia…). Si una falla, `ROLLBACK` de todo. |
 | P5 | Faltan tablas: `publicaciones`, `capacitaciones`, `inhabilidades`. |
-| P6 | Los datos del Registro Civil se muestran **solo lectura**; no se copian a `postulaciones`. |
+| P6 | Los datos del Registro Civil se muestran **solo lectura**; no se copian a `postulaciones`. El botón "Guardar" de 1.1.8 crea el borrador de la postulación y su código único. |
+| P7 | La introducción de EF-12 nombra "Formación adicional" y "Referencias Personales", pero el detalle 1.1–1.10 no las define. "Formación adicional" es **Capacitación** (1.8). "Referencias Personales" **no se implementa**: el PDF no indica sus campos, y L2 impide pedir datos que el formulario no especifica. Se menciona en la sustentación. |
 
 ## Archivos PDF
 

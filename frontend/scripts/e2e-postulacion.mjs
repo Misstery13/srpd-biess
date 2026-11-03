@@ -86,6 +86,8 @@ await sesion('1710034065')
 ok((await texto('[data-personal]'))?.includes('JUAN CARLOS'), '1.1 datos del Registro Civil cargados')
 ok((await texto('[data-personal]'))?.includes('MARÍA ELENA TORRES'), '1.1.7.1 casado: se muestran los datos de la pareja')
 ok(!(await existe('[data-personal] input')), '1.1 información personal en solo lectura (P6)')
+await boton('[data-seccion=personal]', 'Guardar', 600)
+ok((await texto('[data-seccion=personal] output')) === 'Información guardada.' && (await texto('[data-codigo]')) === 'BIESS-2026-000001', '1.1.8 "Guardar" crea el borrador con su código único')
 
 // Domicilio
 const D = '[data-seccion=domicilio]'
