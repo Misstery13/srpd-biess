@@ -21,6 +21,20 @@ EOF
   chmod 600 .env
 fi
 
+# Enlace de recuperación de contraseña (I3): APP_URL = IP pública del VPS, leída en el momento del despliegue
+# (metadatos de EC2 con IMDSv2). No se escribe en el repo; se agrega al .env solo si falta.
+if ! grep -q '^APP_URL=' .env; then
+  imds=http://169.254.169.254/latest
+  token=$(curl -fsS -m 2 -X PUT "$imds/api/token" -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' || true)
+  ip=$(curl -fsS -m 2 -H "X-aws-ec2-metadata-token: $token" "$imds/meta-data/public-ipv4" || true)
+  if [ -n "$ip" ]; then
+    echo "APP_URL=http://$ip" >> .env
+    echo "APP_URL agregado al .env"
+  else
+    echo "AVISO: no se pudo leer la IP pública; agregue APP_URL=http://<ip-o-dominio> al .env a mano" >&2
+  fi
+fi
+
 git pull --ff-only
 docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
 docker image prune -f >/dev/null
