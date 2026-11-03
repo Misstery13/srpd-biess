@@ -17,6 +17,7 @@ backend/bin/
 .idea/
 .DS_Store
 Thumbs.db
+.codegraph/
 
 # Claude
 .claude/

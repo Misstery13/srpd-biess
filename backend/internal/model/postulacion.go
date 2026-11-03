@@ -41,13 +41,13 @@ type Domicilio struct {
 
 // FamiliarIESS representa a un familiar que trabaja en IESS o BIESS.
 type FamiliarIESS struct {
-	ID             int     `json:"id,omitempty"`
-	PostulacionID  int     `json:"postulacion_id,omitempty"`
-	Nombres        string  `json:"nombres"`
-	Parentesco     string  `json:"parentesco"`
-	Institucion    string  `json:"institucion"`
-	Area           *string `json:"area,omitempty"`
-	Cargo          *string `json:"cargo,omitempty"`
+	ID            int     `json:"id,omitempty"`
+	PostulacionID int     `json:"postulacion_id,omitempty"`
+	Nombres       string  `json:"nombres"`
+	Parentesco    string  `json:"parentesco"`
+	Institucion   string  `json:"institucion"`
+	Area          *string `json:"area,omitempty"`
+	Cargo         *string `json:"cargo,omitempty"`
 }
 
 // FormacionAcademica representa un título de tercer o cuarto nivel.
@@ -66,17 +66,17 @@ type FormacionAcademica struct {
 
 // ExperienciaLaboral representa experiencia general o de dirección.
 type ExperienciaLaboral struct {
-	ID             int        `json:"id,omitempty"`
-	PostulacionID  int        `json:"postulacion_id,omitempty"`
-	Tipo           string     `json:"tipo"`
-	Cargo          string     `json:"cargo"`
-	Institucion    string     `json:"institucion"`
-	FechaInicio    time.Time  `json:"fecha_inicio"`
-	FechaFin       *time.Time `json:"fecha_fin,omitempty"`
-	Area           string     `json:"area"`
-	Funciones      *string    `json:"funciones,omitempty"`
-	Documento      *string    `json:"documento,omitempty"`
-	DuracionTexto  string     `json:"duracion_texto,omitempty"` // Calculado (años, meses, días)
+	ID            int        `json:"id,omitempty"`
+	PostulacionID int        `json:"postulacion_id,omitempty"`
+	Tipo          string     `json:"tipo"`
+	Cargo         string     `json:"cargo"`
+	Institucion   string     `json:"institucion"`
+	FechaInicio   time.Time  `json:"fecha_inicio"`
+	FechaFin      *time.Time `json:"fecha_fin,omitempty"`
+	Area          string     `json:"area"`
+	Funciones     *string    `json:"funciones,omitempty"`
+	Documento     *string    `json:"documento,omitempty"`
+	DuracionTexto string     `json:"duracion_texto,omitempty"` // Calculado (años, meses, días)
 }
 
 // Publicacion representa una publicación o trabajo de investigación académica.
@@ -129,13 +129,13 @@ type Inhabilidades struct {
 // PostulacionCompleta agrupa todas las secciones del formulario EF-12.
 type PostulacionCompleta struct {
 	PostulacionHeader
-	Domicilio     *Domicilio           `json:"domicilio,omitempty"`
-	Familiares    []FamiliarIESS       `json:"familiares,omitempty"`
-	Formacion     []FormacionAcademica `json:"formacion,omitempty"`
-	Experiencia   []ExperienciaLaboral `json:"experiencia,omitempty"`
-	Publicaciones []Publicacion        `json:"publicaciones,omitempty"`
-	Capacitaciones []Capacitacion      `json:"capacitaciones,omitempty"`
-	Inhabilidades *Inhabilidades       `json:"inhabilidades,omitempty"`
+	Domicilio      *Domicilio           `json:"domicilio,omitempty"`
+	Familiares     []FamiliarIESS       `json:"familiares,omitempty"`
+	Formacion      []FormacionAcademica `json:"formacion,omitempty"`
+	Experiencia    []ExperienciaLaboral `json:"experiencia,omitempty"`
+	Publicaciones  []Publicacion        `json:"publicaciones,omitempty"`
+	Capacitaciones []Capacitacion       `json:"capacitaciones,omitempty"`
+	Inhabilidades  *Inhabilidades       `json:"inhabilidades,omitempty"`
 }
 
 // ValidarCargoRequest petición para validar aptitud para un cargo.

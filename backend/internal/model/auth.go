@@ -3,20 +3,20 @@ package model
 import "time"
 
 type RegistroCivil struct {
-	Cedula           string    `json:"cedula"`
-	Nombres          string    `json:"nombres"`
-	Apellidos        string    `json:"apellidos"`
-	Genero           string    `json:"genero"`
-	FechaNacimiento  time.Time `json:"fecha_nacimiento"`
-	Nacionalidad     string    `json:"nacionalidad"`
-	EstadoCivil      string    `json:"estado_civil"`
-	ConyugeNombres   *string   `json:"conyuge_nombres,omitempty"`
-	ConyugeCedula    *string   `json:"conyuge_cedula,omitempty"`
-	FechaExpedicion  time.Time `json:"fecha_expedicion"`
-	CodigoDactilar   string    `json:"codigo_dactilar"`
-	EsAfiliado       bool      `json:"es_afiliado"`
-	EsJubilado       bool      `json:"es_jubilado"`
-	EsEmpleador      bool      `json:"es_empleador"`
+	Cedula          string    `json:"cedula"`
+	Nombres         string    `json:"nombres"`
+	Apellidos       string    `json:"apellidos"`
+	Genero          string    `json:"genero"`
+	FechaNacimiento time.Time `json:"fecha_nacimiento"`
+	Nacionalidad    string    `json:"nacionalidad"`
+	EstadoCivil     string    `json:"estado_civil"`
+	ConyugeNombres  *string   `json:"conyuge_nombres,omitempty"`
+	ConyugeCedula   *string   `json:"conyuge_cedula,omitempty"`
+	FechaExpedicion time.Time `json:"fecha_expedicion"`
+	CodigoDactilar  string    `json:"codigo_dactilar"`
+	EsAfiliado      bool      `json:"es_afiliado"`
+	EsJubilado      bool      `json:"es_jubilado"`
+	EsEmpleador     bool      `json:"es_empleador"`
 }
 
 type Postulante struct {
