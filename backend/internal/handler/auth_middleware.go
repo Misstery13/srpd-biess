@@ -26,7 +26,7 @@ func JWTMiddleware(jwtSecret string) gin.HandlerFunc {
 				return nil, fmt.Errorf("método de firma inesperado: %v", token.Header["alg"])
 			}
 			return []byte(jwtSecret), nil
-		})
+		}, jwt.WithValidMethods([]string{"HS256"}), jwt.WithExpirationRequired())
 
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Su sesión ha expirado o es inválida"})

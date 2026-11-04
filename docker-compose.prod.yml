@@ -33,6 +33,7 @@ services:
     environment:
       GIN_MODE: release
       POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
       REDIS_ADDR: redis:6379
       SMTP_HOST: mailpit
     volumes:

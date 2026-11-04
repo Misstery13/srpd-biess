@@ -89,9 +89,9 @@ func TestPostulacionRepository_TransaccionalYRollback(t *testing.T) {
 
 	postulacion := &model.PostulacionCompleta{
 		PostulacionHeader: model.PostulacionHeader{
-			Cargo:        &cargo,
-			RespaldoOrg:  &respaldo,
-			OrgNombre:    &orgNombre,
+			Cargo:       &cargo,
+			RespaldoOrg: &respaldo,
+			OrgNombre:   &orgNombre,
 		},
 		Domicilio: &model.Domicilio{
 			PaisID:         52, // Ecuador

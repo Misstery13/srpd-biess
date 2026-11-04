@@ -92,10 +92,18 @@ var tiposEventoCapacitacionValidos = map[string]string{
 }
 
 // PostulacionService gestiona las reglas de negocio del formulario EF-12.
-type PostulacionService struct {
+type PostulacionService interface {
+	ValidarCargo(ctx context.Context, postulanteID int, req *model.ValidarCargoRequest) (*model.ValidarCargoResponse, error)
+	ObtenerPostulacion(ctx context.Context, postulanteID int) (*model.PostulacionCompleta, error)
+	GuardarPostulacion(ctx context.Context, postulanteID int, p *model.PostulacionCompleta) (string, error)
+	SubirDocumento(ctx context.Context, postulanteID int, tipo string, fileHeader *multipart.FileHeader) (string, error)
+	EnviarPostulacion(ctx context.Context, postulanteID int, req *model.EnviarPostulacionRequest) (string, error)
+}
+
+type postulacionService struct {
 	postulacionRepo repository.PostulacionRepository
 	postulanteRepo  repository.PostulanteRepository
-	periodoSvc      *PeriodoService
+	periodoSvc      PeriodoService
 	emailSvc        EmailService
 	uploadsDir      string
 }
@@ -104,11 +112,11 @@ type PostulacionService struct {
 func NewPostulacionService(
 	postulacionRepo repository.PostulacionRepository,
 	postulanteRepo repository.PostulanteRepository,
-	periodoSvc *PeriodoService,
+	periodoSvc PeriodoService,
 	emailSvc EmailService,
 	uploadsDir string,
-) *PostulacionService {
-	return &PostulacionService{
+) PostulacionService {
+	return &postulacionService{
 		postulacionRepo: postulacionRepo,
 		postulanteRepo:  postulanteRepo,
 		periodoSvc:      periodoSvc,
@@ -118,7 +126,7 @@ func NewPostulacionService(
 }
 
 // postulanteHabilitado valida nacionalidad ecuatoriana (V5, 1.1.6), cuenta activa (L5) y requisitos de cargo (1.4.x).
-func (s *PostulacionService) postulanteHabilitado(ctx context.Context, id int, cargo *string) error {
+func (s *postulacionService) postulanteHabilitado(ctx context.Context, id int, cargo *string) error {
 	perfil, err := s.postulanteRepo.ObtenerDetalleRegistroCivil(ctx, id) // ya filtra deleted_at IS NULL
 	if err != nil {
 		return err
@@ -140,7 +148,7 @@ func (s *PostulacionService) postulanteHabilitado(ctx context.Context, id int, c
 }
 
 // validarRutaDoc verifica que el documento cumpla el patrón seguro, pertenezca al usuario y exista en disco (O1).
-func (s *PostulacionService) validarRutaDoc(ruta *string, postulanteID int, campo string) error {
+func (s *postulacionService) validarRutaDoc(ruta *string, postulanteID int, campo string) error {
 	if ruta == nil || strings.TrimSpace(*ruta) == "" {
 		return nil
 	}
@@ -165,7 +173,7 @@ func (s *PostulacionService) validarRutaDoc(ruta *string, postulanteID int, camp
 }
 
 // ValidarCargo valida si el postulante está habilitado según Historial Laboral IESS (1.4.x).
-func (s *PostulacionService) ValidarCargo(ctx context.Context, postulanteID int, req *model.ValidarCargoRequest) (*model.ValidarCargoResponse, error) {
+func (s *postulacionService) ValidarCargo(ctx context.Context, postulanteID int, req *model.ValidarCargoRequest) (*model.ValidarCargoResponse, error) {
 	cargo := strings.ToUpper(strings.TrimSpace(req.Cargo))
 	if cargo != "AFILIADOS" && cargo != "JUBILADOS" && cargo != "EMPLEADORES" {
 		return nil, NewErrValidacion("Cargo inválido. Debe ser AFILIADOS, JUBILADOS o EMPLEADORES.")
@@ -224,7 +232,7 @@ func (s *PostulacionService) ValidarCargo(ctx context.Context, postulanteID int,
 }
 
 // ObtenerPostulacion recupera la postulación completa activa del postulante.
-func (s *PostulacionService) ObtenerPostulacion(ctx context.Context, postulanteID int) (*model.PostulacionCompleta, error) {
+func (s *postulacionService) ObtenerPostulacion(ctx context.Context, postulanteID int) (*model.PostulacionCompleta, error) {
 	if err := s.postulanteHabilitado(ctx, postulanteID, nil); err != nil {
 		return nil, err
 	}
@@ -246,7 +254,7 @@ func (s *PostulacionService) ObtenerPostulacion(ctx context.Context, postulanteI
 }
 
 // GuardarPostulacion valida y persiste la postulación en una única transacción (P4).
-func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteID int, p *model.PostulacionCompleta) (string, error) {
+func (s *postulacionService) GuardarPostulacion(ctx context.Context, postulanteID int, p *model.PostulacionCompleta) (string, error) {
 	// 1, 2, 3: Validar que el postulante esté habilitado y apto para el cargo
 	if err := s.postulanteHabilitado(ctx, postulanteID, p.Cargo); err != nil {
 		return "", err
@@ -268,6 +276,19 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 			return "", NewErrValidacion("El cargo seleccionado no es válido.")
 		}
 		p.Cargo = &c
+	}
+
+	// Obligatorios y formato de textos, teléfonos y fechas de todas las secciones
+	perfil, err := s.postulanteRepo.ObtenerDetalleRegistroCivil(ctx, postulanteID)
+	if err != nil {
+		return "", err
+	}
+	emailRegistrado := ""
+	if perfil != nil {
+		emailRegistrado = perfil.Email
+	}
+	if err := validarCampos(p, emailRegistrado); err != nil {
+		return "", err
 	}
 
 	// 6: Campos obligatorios de respaldo organizacional (1.4.x.3.1.1 y 1.4.x.3.1.2)
@@ -433,7 +454,7 @@ func (s *PostulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 	return codigo, nil
 }
 
-func (s *PostulacionService) limpiarArchivosHuerfanos(postulanteID int, oldP, newP *model.PostulacionCompleta) {
+func (s *postulacionService) limpiarArchivosHuerfanos(postulanteID int, oldP, newP *model.PostulacionCompleta) {
 	nuevosDocs := make(map[string]bool)
 	agregarDoc := func(d *string) {
 		if d != nil && strings.TrimSpace(*d) != "" {
@@ -481,7 +502,7 @@ func (s *PostulacionService) limpiarArchivosHuerfanos(postulanteID int, oldP, ne
 }
 
 // SubirDocumento valida el archivo (%PDF, tamaño, cuota) y lo almacena con nombre UUID (A1-A3, O1).
-func (s *PostulacionService) SubirDocumento(ctx context.Context, postulanteID int, tipo string, fileHeader *multipart.FileHeader) (string, error) {
+func (s *postulacionService) SubirDocumento(ctx context.Context, postulanteID int, tipo string, fileHeader *multipart.FileHeader) (string, error) {
 	// 1, 3: Validar que el postulante esté habilitado
 	if err := s.postulanteHabilitado(ctx, postulanteID, nil); err != nil {
 		return "", err
@@ -575,7 +596,7 @@ func (s *PostulacionService) SubirDocumento(ctx context.Context, postulanteID in
 }
 
 // EnviarPostulacion finaliza y envía la postulación con consentimiento explícito LOPDP (L1, P3, I2).
-func (s *PostulacionService) EnviarPostulacion(ctx context.Context, postulanteID int, req *model.EnviarPostulacionRequest) (string, error) {
+func (s *postulacionService) EnviarPostulacion(ctx context.Context, postulanteID int, req *model.EnviarPostulacionRequest) (string, error) {
 	// 1, 3: Validar primero que el postulante sea ecuatoriano y no esté suprimido (V5, L5)
 	// Se ejecuta primero para que extranjeros reciban 403 y cuentas dadas de baja 401 antes que cualquier 404
 	if err := s.postulanteHabilitado(ctx, postulanteID, nil); err != nil {

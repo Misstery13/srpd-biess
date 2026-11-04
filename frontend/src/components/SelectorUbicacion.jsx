@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getCantones, getPaises, getProvincias, UBICACION_VACIA } from '../services/catalogos.js'
+import { sinDigitos } from '../utils/validaciones.js'
 
 // Carga una lista cuando cambia `clave`; clave vacía = lista vacía sin pedir nada.
 // "cargando" se deriva comparando la clave pedida con la última respondida: sin setState extra.
@@ -72,7 +73,7 @@ function Texto({ id, etiqueta, valor, onChange }) {
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
         {etiqueta} <span className="text-red-600">*</span>
       </label>
-      <input id={id} className={campo} value={valor} onChange={(e) => onChange(e.target.value)} maxLength={100} required />
+      <input id={id} className={campo} value={valor} onChange={(e) => onChange(sinDigitos(e.target.value))} maxLength={100} required />
     </div>
   )
 }

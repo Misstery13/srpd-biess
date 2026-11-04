@@ -18,7 +18,6 @@ import (
 )
 
 func main() {
-	// 1. Cargar y validar configuración (.env)
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error de configuración: %v", err)
@@ -27,8 +26,22 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// 2. Conexión a PostgreSQL (pgxpool)
-	poolConfig, err := pgxpool.ParseConfig(cfg.PostgresDSN())
+	pgPool := initPostgres(ctx, cfg.PostgresDSN())
+	defer pgPool.Close()
+
+	rdb := initRedis(ctx, cfg)
+	defer rdb.Close()
+
+	router := buildRouter(cfg, pgPool, rdb)
+
+	log.Printf("Servidor API escuchando en el puerto :%s", cfg.AppPort)
+	if err := router.Run(":" + cfg.AppPort); err != nil {
+		log.Fatalf("Error al iniciar el servidor: %v", err)
+	}
+}
+
+func initPostgres(ctx context.Context, dsn string) *pgxpool.Pool {
+	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		log.Fatalf("Error al parsear configuración de PostgreSQL: %v", err)
 	}
@@ -39,15 +52,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error al crear pool de PostgreSQL: %v", err)
 	}
-	defer pgPool.Close()
 
 	if err := pgPool.Ping(ctx); err != nil {
 		log.Fatalf("No se pudo conectar a PostgreSQL: %v", err)
 	}
 	log.Println("Conexión exitosa a PostgreSQL")
+	return pgPool
+}
 
-	// 3. Conexión a Redis con timeouts cortos y sin reintentos (Bloqueante 2)
-	redisClient := redis.NewClient(&redis.Options{
+func initRedis(ctx context.Context, cfg *config.Config) *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
 		Addr:         cfg.RedisAddr,
 		Password:     cfg.RedisPassword,
 		DB:           0,
@@ -56,44 +70,16 @@ func main() {
 		WriteTimeout: 200 * time.Millisecond,
 		MaxRetries:   0,
 	})
-	defer redisClient.Close()
 
-	if err := redisClient.Ping(ctx).Err(); err != nil {
+	if err := rdb.Ping(ctx).Err(); err != nil {
 		log.Printf("[ALERTA] No se pudo conectar a Redis (%v). Se usará fallback directo a PostgreSQL.", err)
 	} else {
 		log.Println("Conexión exitosa a Redis")
 	}
+	return rdb
+}
 
-	// 4. Inyección de dependencias (Repository -> Service -> Handler)
-	// Catálogos
-	catalogoRepo := repository.NewCatalogoRepository(pgPool)
-	cachedCatalogoRepo := cache.NewCachedCatalogoRepository(catalogoRepo, redisClient)
-	catalogoSvc := service.NewCatalogoService(cachedCatalogoRepo)
-	catalogoHdl := handler.NewCatalogoHandler(catalogoSvc)
-
-	// Autenticación (EF-11, Issue #8)
-	rcRepo := repository.NewRegistroCivilRepository(pgPool)
-	postRepo := repository.NewPostulanteRepository(pgPool)
-	permisoRepo := repository.NewPermisoRepository(pgPool)
-	authCache := cache.NewAuthCache(redisClient)
-	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
-	authSvc := service.NewAuthService(rcRepo, postRepo, authCache, emailSvc, cfg.JWTSecret)
-	authHdl := handler.NewAuthHandler(authSvc)
-
-	// Periodo de postulación (T2)
-	periodoRepo := repository.NewPeriodoRepository(pgPool)
-	periodoSvc := service.NewPeriodoService(periodoRepo)
-	periodoHdl := handler.NewPeriodoHandler(periodoSvc)
-
-	// Postulante y Postulación (EF-12, Issue #11)
-	postulanteSvc := service.NewPostulanteService(postRepo, cfg.UploadsDir)
-	postulanteHdl := handler.NewPostulanteHandler(postulanteSvc)
-
-	postulacionRepo := repository.NewPostulacionRepository(pgPool)
-	postulacionSvc := service.NewPostulacionService(postulacionRepo, postRepo, periodoSvc, emailSvc, cfg.UploadsDir)
-	postulacionHdl := handler.NewPostulacionHandler(postulacionSvc)
-
-	// 5. Configuración de Gin (Menor 1 y Menor 2)
+func buildRouter(cfg *config.Config, pgPool *pgxpool.Pool, rdb *redis.Client) *gin.Engine {
 	if os.Getenv("GIN_MODE") == "release" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -108,17 +94,24 @@ func main() {
 	router.Use(handler.SecurityHeadersMiddleware())
 	router.Use(handler.ErrorMiddleware())
 
-	// Ruta inexistente uniforme JSON (E1)
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Ruta no encontrada."})
 	})
-
-	// Ruta de health check (mantenida para despliegue y monitoreo)
 	router.GET("/api/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
-	// Endpoints de catálogos (Públicos)
+	registerAppRoutes(router, cfg, pgPool, rdb)
+	return router
+}
+
+func registerAppRoutes(router *gin.Engine, cfg *config.Config, pgPool *pgxpool.Pool, rdb *redis.Client) {
+	// Catálogos
+	catalogoRepo := repository.NewCatalogoRepository(pgPool)
+	cachedCatalogoRepo := cache.NewCachedCatalogoRepository(catalogoRepo, rdb)
+	catalogoSvc := service.NewCatalogoService(cachedCatalogoRepo)
+	catalogoHdl := handler.NewCatalogoHandler(catalogoSvc)
+
 	catalogosGroup := router.Group("/api/catalogos")
 	{
 		catalogosGroup.GET("/paises", catalogoHdl.ListarPaises)
@@ -126,7 +119,21 @@ func main() {
 		catalogosGroup.GET("/provincias/:id/cantones", catalogoHdl.ListarCantones)
 	}
 
-	// Endpoints de autenticación (Públicos - EF-11)
+	// Autenticación (EF-11)
+	rcRepo := repository.NewRegistroCivilRepository(pgPool)
+	postRepo := repository.NewPostulanteRepository(pgPool)
+	permisoRepo := repository.NewPermisoRepository(pgPool)
+	authCache := cache.NewAuthCache(rdb, cfg.JWTSecret)
+	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
+	authSvc := service.NewAuthService(service.AuthConfig{
+		RCRepo:    rcRepo,
+		PostRepo:  postRepo,
+		Cache:     authCache,
+		EmailSvc:  emailSvc,
+		JWTSecret: cfg.JWTSecret,
+	})
+	authHdl := handler.NewAuthHandler(authSvc)
+
 	authGroup := router.Group("/api/auth")
 	{
 		authGroup.POST("/verificar", authHdl.Verificar)
@@ -136,10 +143,19 @@ func main() {
 		authGroup.POST("/restablecer", authHdl.Restablecer)
 	}
 
-	// Periodo de postulación (Público - T2)
+	// Periodo (T2 - Consulta directa a BD sin caché para reflejar apertura/cierre en tiempo real)
+	periodoRepo := repository.NewPeriodoRepository(pgPool)
+	periodoSvc := service.NewPeriodoService(periodoRepo)
+	periodoHdl := handler.NewPeriodoHandler(periodoSvc)
 	router.GET("/api/periodo", periodoHdl.ObtenerPeriodo)
 
-	// Rutas protegidas de postulante (Requieren JWT y validación RBAC - R3, R4)
+	// Postulante y Postulación protegidas (R3, R4)
+	postulanteSvc := service.NewPostulanteService(postRepo, cfg.UploadsDir)
+	postulanteHdl := handler.NewPostulanteHandler(postulanteSvc)
+	postulacionRepo := repository.NewPostulacionRepository(pgPool)
+	postulacionSvc := service.NewPostulacionService(postulacionRepo, postRepo, periodoSvc, emailSvc, cfg.UploadsDir)
+	postulacionHdl := handler.NewPostulacionHandler(postulacionSvc)
+
 	postulanteGroup := router.Group("/api/postulante")
 	postulanteGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
 	postulanteGroup.Use(handler.RBACMiddleware(permisoRepo))
@@ -148,7 +164,6 @@ func main() {
 		postulanteGroup.DELETE("/me", postulanteHdl.SuprimirCuenta)
 	}
 
-	// Rutas protegidas de postulación (Requieren JWT y validación RBAC - R3, R4)
 	postulacionGroup := router.Group("/api/postulacion")
 	postulacionGroup.Use(handler.JWTMiddleware(cfg.JWTSecret))
 	postulacionGroup.Use(handler.RBACMiddleware(permisoRepo))
@@ -158,10 +173,5 @@ func main() {
 		postulacionGroup.PUT("", postulacionHdl.Guardar)
 		postulacionGroup.POST("/documentos", postulacionHdl.SubirDocumento)
 		postulacionGroup.POST("/enviar", postulacionHdl.Enviar)
-	}
-
-	log.Printf("Servidor API escuchando en el puerto :%s", cfg.AppPort)
-	if err := router.Run(":" + cfg.AppPort); err != nil {
-		log.Fatalf("Error al iniciar el servidor: %v", err)
 	}
 }

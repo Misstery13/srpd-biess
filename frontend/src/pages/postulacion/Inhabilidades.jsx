@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Campo, SiNo } from '../../components/Formulario.jsx'
 import { aFechaApi, deFechaApi, INHABILIDADES } from '../../utils/ef12.js'
 import { hoy } from './comun.js'
+import { fechaEnRango, revisarTexto } from '../../utils/validaciones.js'
 import Seccion from './Seccion.jsx'
 
 // Declaración jurada: ninguna respuesta viene marcada; las 13 son obligatorias
@@ -34,9 +35,10 @@ function validar(f) {
   const e = {}
   for (const [clave] of INHABILIDADES) if (f[clave] === null) e[clave] = 'Seleccione Si o No.'
   if (f.removido_control) {
-    if (!f.removido_institucion.trim()) e.removido_institucion = 'Ingrese la institución.'
-    if (!f.removido_motivo.trim()) e.removido_motivo = 'Ingrese el motivo de finalización.'
-    if (f.removido_fecha_fin > hoy()) e.removido_fecha_fin = 'La fecha no puede ser futura.'
+    revisarTexto(e, 'removido_institucion', f.removido_institucion, { vacio: 'Ingrese la institución.' })
+    revisarTexto(e, 'removido_cargo', f.removido_cargo)
+    revisarTexto(e, 'removido_motivo', f.removido_motivo, { vacio: 'Ingrese el motivo de finalización.' })
+    if (f.removido_fecha_fin && !fechaEnRango(f.removido_fecha_fin, hoy())) e.removido_fecha_fin = 'Ingrese una fecha entre 1900 y hoy (no futura).'
   }
   return e
 }
@@ -63,8 +65,8 @@ export default function Inhabilidades({ postulacion, guardar, soloLectura }) {
             {clave === 'removido_control' && form.removido_control && (
               <div className="grid gap-4 rounded-md border border-slate-200 p-4 sm:grid-cols-2">
                 <Campo id="removido_institucion" etiqueta="Institución:" maxLength={200} required value={form.removido_institucion} onChange={set('removido_institucion')} error={errores.removido_institucion} />
-                <Campo id="removido_cargo" etiqueta="Cargo:" maxLength={100} value={form.removido_cargo} onChange={set('removido_cargo')} />
-                <Campo id="removido_fecha_fin" etiqueta="Fecha finalización:" type="date" max={hoy()} value={form.removido_fecha_fin} onChange={set('removido_fecha_fin')} error={errores.removido_fecha_fin} />
+                <Campo id="removido_cargo" etiqueta="Cargo:" maxLength={100} value={form.removido_cargo} onChange={set('removido_cargo')} error={errores.removido_cargo} />
+                <Campo id="removido_fecha_fin" etiqueta="Fecha finalización:" type="date" min="1900-01-01" max={hoy()} value={form.removido_fecha_fin} onChange={set('removido_fecha_fin')} error={errores.removido_fecha_fin} />
                 <Campo id="removido_motivo" etiqueta="Motivo finalización:" maxLength={500} required value={form.removido_motivo} onChange={set('removido_motivo')} error={errores.removido_motivo} />
               </div>
             )}
