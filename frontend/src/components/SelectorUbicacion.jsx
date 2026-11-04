@@ -31,12 +31,13 @@ function useCatalogo(cargar, clave) {
   }
 }
 
-const campo = 'w-full rounded-md border border-slate-300 bg-white px-3 py-2 disabled:bg-slate-100 disabled:text-slate-400'
+const campo =
+  'w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-xs transition-colors hover:border-slate-400 focus:border-marca-600 focus:outline-none focus:ring-3 focus:ring-marca-600/15 disabled:bg-slate-100 disabled:text-slate-400'
 
 function Lista({ id, etiqueta, valor, onChange, catalogo, deshabilitado, placeholder }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
         {etiqueta} <span className="text-red-600">*</span>
       </label>
       <select
@@ -69,7 +70,7 @@ function Lista({ id, etiqueta, valor, onChange, catalogo, deshabilitado, placeho
 function Texto({ id, etiqueta, valor, onChange }) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
         {etiqueta} <span className="text-red-600">*</span>
       </label>
       <input id={id} className={campo} value={valor} onChange={(e) => onChange(sinDigitos(e.target.value))} maxLength={100} required />

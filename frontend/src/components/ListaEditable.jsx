@@ -48,7 +48,7 @@ export default function ListaEditable({ nombre, items, onChange, nuevo, validar,
       </ul>
 
       {edicion ? (
-        <div className="flex flex-col gap-4 rounded-md border border-emerald-200 bg-emerald-50/40 p-4" data-edicion>
+        <div className="flex flex-col gap-4 rounded-md border border-marca-200 bg-marca-50/40 p-4" data-edicion>
           <Formulario valor={edicion.valor} onChange={(valor) => setEdicion({ ...edicion, valor })} errores={edicion.errores} />
           <div className="flex gap-2">
             <BotonLinea onClick={aceptar}>{edicion.indice === -1 ? 'Agregar a la lista' : 'Aplicar cambios'}</BotonLinea>

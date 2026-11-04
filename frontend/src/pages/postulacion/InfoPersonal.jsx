@@ -3,8 +3,8 @@ import { fechaUI } from './comun.js'
 import Seccion from './Seccion.jsx'
 
 // 1.1: datos del Registro Civil, solo lectura (P6); pareja si es casado/a o unión de hecho (1.1.7.1)
-// 1.1.8 "Guardar": no hay nada que editar, así que crea el borrador de la postulación y su código único
-export default function InfoPersonal({ perfil, guardar, soloLectura }) {
+// 1.1.8 "Guardar": no hay nada que editar, así que crea el borrador de la postulación y su código único y pasa a la sección 1.2
+export default function InfoPersonal({ postulacion, perfil, guardar, soloLectura, irA }) {
   const datos = [
     ['Nombres', perfil.nombres],
     ['Apellidos', perfil.apellidos],
@@ -20,9 +20,13 @@ export default function InfoPersonal({ perfil, guardar, soloLectura }) {
 
   return (
     <Seccion titulo="Información personal" descripcion="Datos obtenidos del Registro Civil del Ecuador. No se pueden modificar."
-      onGuardar={() => guardar({})}
+      onGuardar={async () => {
+        await guardar({})
+        irA('domicilio')
+      }}
       soloLectura={soloLectura}
       textoBoton="Guardar"
+      mensajeOk={null}
     >
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2" data-personal>
         {datos.map(([etiqueta, valor]) => (
@@ -32,6 +36,9 @@ export default function InfoPersonal({ perfil, guardar, soloLectura }) {
           </div>
         ))}
       </dl>
+      <p className="text-sm text-slate-600" data-codigo-info>
+        {postulacion?.codigo ? `Código de postulación generado: ${postulacion.codigo}.` : 'Al guardar se genera su código de postulación y puede continuar con el formulario.'}
+      </p>
     </Seccion>
   )
 }

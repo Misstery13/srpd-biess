@@ -27,7 +27,7 @@ export default function CampoPDF({ id, etiqueta, value, onChange, limite, tipo, 
   const mensaje = estado.error || error
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-medium">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-slate-700">
         {etiqueta} (PDF, máximo {limite / MB} MB)
         {obligatorio && <span className="text-red-600"> *</span>}
       </label>
@@ -38,11 +38,11 @@ export default function CampoPDF({ id, etiqueta, value, onChange, limite, tipo, 
         onChange={elegir}
         aria-invalid={mensaje ? true : undefined}
         aria-describedby={mensaje ? `${id}-error` : undefined}
-        className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-emerald-50 file:px-3 file:py-2 file:text-emerald-800"
+        className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-marca-50 file:px-3 file:py-2 file:font-medium file:text-marca-800 hover:file:bg-marca-100"
       />
       {estado.subiendo && <p className="mt-1 text-sm text-slate-500">Subiendo {estado.nombre}…</p>}
       {!estado.subiendo && value && (
-        <p className="mt-1 text-sm text-emerald-800" data-documento>
+        <p className="mt-1 text-sm text-marca-800" data-documento>
           ✓ Documento cargado{estado.nombre && `: ${estado.nombre}`}
         </p>
       )}

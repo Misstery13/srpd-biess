@@ -104,6 +104,8 @@ CREATE TABLE postulaciones (
     respaldo_org  BOOLEAN,
     org_nombre    VARCHAR(200),
     org_documento VARCHAR(255),                 -- ruta al PDF (máx 4 MB)
+    tiene_familiares    BOOLEAN,                -- 1.3.1 Sí/No (NULL = sin responder)
+    tiene_publicaciones BOOLEAN,                -- 1.7 Sí/No (NULL = sin responder)
     estado        VARCHAR(20) NOT NULL DEFAULT 'BORRADOR'
                   CHECK (estado IN ('BORRADOR', 'ENVIADA', 'CERRADA')),
     acepta_terminos BOOLEAN NOT NULL DEFAULT FALSE,

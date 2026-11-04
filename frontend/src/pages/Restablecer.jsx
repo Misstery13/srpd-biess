@@ -41,7 +41,7 @@ export default function Restablecer() {
           Guardar contraseña
         </Boton>
       </form>
-      <Link to="/recuperar" className="mt-4 inline-block text-sm text-emerald-800 underline">
+      <Link to="/recuperar" className="mt-4 inline-block text-sm text-marca-800 underline">
         Solicitar un nuevo enlace
       </Link>
     </Tarjeta>
