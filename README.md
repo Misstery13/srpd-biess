@@ -7,6 +7,11 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 
 **Plan de implementación por fases:** [`docs/plan/`](docs/plan/README.md)
 
+## Enlaces del proyecto
+
+- **Repositorio de Git:** [https://github.com/Misstery13/srpd-biess](https://github.com/Misstery13/srpd-biess)
+- **Despliegue en producción:** [https://www.postulacionesbiess.dev](https://www.postulacionesbiess.dev) (VPS EC2 AWS: `35.169.158.108`)
+
 ## Arquitectura
 
 | Capa | Tecnología |
@@ -49,9 +54,11 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 
 ## Prerrequisitos
 
-- Go 1.26+
-- Node.js 20+ (probado con 24)
-- Docker + Docker Compose (para PostgreSQL 16 y Redis 7), o instalarlos localmente
+- **Go:** 1.26+ (definido en `backend/go.mod`)
+- **Node.js:** 20+ (probado con Node 24 y npm 10+)
+- **PostgreSQL:** 16+
+- **Redis:** 7+
+- **Docker y Docker Compose:** v2+ (recomendado para levantar PostgreSQL 16, Redis 7 y Mailpit sin instalaciones locales)
 
 ## Ejecución local
 
@@ -89,6 +96,45 @@ node scripts/e2e-postulacion.mjs "<ruta a chrome>" http://localhost:5173   # con
 ```
 
 Para reiniciar la base desde cero: `docker compose down -v && docker compose up -d`.
+
+### Variables de entorno (`.env.example`)
+
+El archivo `.env.example` contiene las variables requeridas para desplegar el stack local y en producción:
+
+| Variable | Valor por defecto | Descripción |
+|---|---|---|
+| `APP_PORT` | `8080` | Puerto HTTP en el que escucha el backend en Go |
+| `APP_URL` | `http://localhost:5173` | URL pública de la aplicación (usada en enlaces de recuperación de contraseña) |
+| `JWT_SECRET` | *(requerido)* | Clave secreta (≥ 32 caracteres) para firmar tokens JWT (`openssl rand -hex 32`) |
+| `SMTP_HOST` | `localhost` / `mailpit` | Host del servidor SMTP para notificaciones y recuperación de clave |
+| `SMTP_PORT` | `1025` | Puerto SMTP (Mailpit en desarrollo) |
+| `POSTGRES_HOST` | `localhost` / `postgres` | Host del motor PostgreSQL |
+| `POSTGRES_PORT` | `5432` | Puerto de conexión a PostgreSQL |
+| `POSTGRES_DB` | `srpd_biess` | Nombre de la base de datos |
+| `POSTGRES_USER` | `biess` | Usuario de PostgreSQL |
+| `POSTGRES_PASSWORD` | `biess` | Contraseña de PostgreSQL |
+| `REDIS_ADDR` | `localhost:6379` / `redis:6379` | Host y puerto del servidor Redis |
+| `REDIS_PASSWORD` | *(vacío en local)* | Contraseña de autenticación de Redis |
+| `LOGIN_MAX_ATTEMPTS` | `3` | Intentos fallidos antes de bloquear la cédula en Redis |
+| `LOGIN_LOCK_MINUTES` | `10` | Duración del bloqueo en minutos tras exceder intentos |
+| `CATALOG_CACHE_TTL_HOURS` | `24` | Tiempo de vida (TTL) del caché de catálogos en Redis |
+| `VITE_API_URL` | `/api` | Prefijo de la API consumida por el frontend |
+| `VITE_MOCK` | `false` | `true` activa simulación en memoria sin backend |
+
+### Script DDL y datos semilla (`db/init.sql`)
+
+El archivo [`db/init.sql`](db/init.sql) contiene el esquema relacional DDL completo y las semillas de datos:
+
+1. **División política territorial (Catálogos normalizados):**
+   - Tablas `paises`, `provincias` y `cantones` con foreign keys compuestas e integridad referencial.
+   - Datos semilla con el registro oficial de Ecuador (sus 24 provincias y cantones) y países extranjeros para postulantes no residentes.
+2. **Interoperabilidad simulada (Registro Civil e Historial IESS):**
+   - Tabla `registro_civil` con registros de prueba simulando datos de identidad (cédula, nombres, código dactilar, fecha de expedición, estado civil, cónyuge) y condiciones laborales del IESS (`es_afiliado`, `es_jubilado`, `es_empleador`).
+3. **Módulo de Postulación transaccional (EF-12):**
+   - Tablas de postulaciones: `postulantes`, `periodos`, `postulaciones`, `domicilios`, `familiares`, `formacion_academica`, `experiencias`, `publicaciones`, `capacitaciones` e `inhabilidades`.
+   - Soporte para transacciones atómicas `BEGIN / COMMIT / ROLLBACK` en cada guardado.
+4. **Seguridad y Control de Acceso (RBAC):**
+   - Tablas `rol`, `permiso` y `rol_permiso` con soporte de borrado lógico (`deleted_at`) e índices únicos parciales.
 
 ### Usuarios de prueba (Registro Civil simulado)
 
