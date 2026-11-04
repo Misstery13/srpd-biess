@@ -9,6 +9,11 @@ export default function Seccion({ titulo, descripcion, onGuardar, soloLectura, t
 
   async function enviar(e) {
     e.preventDefault()
+    // Un ítem abierto en ListaEditable (sin "Agregar a la lista") no se guardaría: se perdería o quedaría vacío
+    if (e.currentTarget.querySelector('[data-edicion]')) {
+      setEstado({ cargando: false, error: 'Tiene un registro abierto: pulse "Agregar a la lista" (o "Aplicar cambios") o "Cancelar" antes de guardar.', ok: false })
+      return
+    }
     setEstado({ cargando: true, error: '', ok: false })
     try {
       const errores = await onGuardar()

@@ -11,11 +11,11 @@ import (
 
 // PostulacionHandler maneja las peticiones de postulación (EF-12).
 type PostulacionHandler struct {
-	svc *service.PostulacionService
+	svc service.PostulacionService
 }
 
 // NewPostulacionHandler crea una nueva instancia de PostulacionHandler.
-func NewPostulacionHandler(svc *service.PostulacionService) *PostulacionHandler {
+func NewPostulacionHandler(svc service.PostulacionService) *PostulacionHandler {
 	return &PostulacionHandler{svc: svc}
 }
 

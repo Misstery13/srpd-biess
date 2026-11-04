@@ -3,6 +3,7 @@ import CampoPDF from '../../components/CampoPDF.jsx'
 import { Alerta, Campo, SiNo } from '../../components/Formulario.jsx'
 import { validarCargo } from '../../services/postulacion.js'
 import { CARGOS, cargoPorCodigo, LIMITE_ORGANIZACION } from '../../utils/ef12.js'
+import { revisarTexto } from '../../utils/validaciones.js'
 import Seccion from './Seccion.jsx'
 
 // 1.4: selección del cargo. La calidad de afiliado / jubilado / empleador se valida contra el
@@ -42,7 +43,7 @@ export default function Cargo({ postulacion, guardar, soloLectura, onCierre }) {
     else if (!habilitado) e.cargo = 'Espere la validación del cargo.'
     if (habilitado && respaldo === null) e.respaldo = 'Responda si cuenta con el respaldo de una organización.'
     if (respaldo) {
-      if (!orgNombre.trim()) e.orgNombre = 'Ingrese el nombre de la organización.'
+      revisarTexto(e, 'orgNombre', orgNombre, { vacio: 'Ingrese el nombre de la organización.' })
       if (!orgDocumento) e.orgDocumento = 'Cargue el documento de respaldo.'
     }
     setErrores(e)

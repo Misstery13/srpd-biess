@@ -35,7 +35,8 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 │       ├── context/        # estado global (sesión)
 │       └── routes/         # rutas protegidas
 ├── db/init.sql             # DDL + datos semilla (países, provincias, cantones, registro civil simulado)
-├── docker-compose.yml      # PostgreSQL + Redis
+├── docker-compose.yml      # PostgreSQL + Redis + Mailpit (desarrollo)
+├── docker-compose.prod.yml # stack completo con Nginx (VPS)
 ├── .env.example
 └── docs/                   # enunciado y requerimiento funcional
 ```
@@ -57,8 +58,10 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 ```bash
 # 1. Variables de entorno
 cp .env.example .env
+# Cambiar JWT_SECRET: el backend no arranca con el valor de ejemplo (mínimo 32 caracteres)
+#   openssl rand -hex 32
 
-# 2. Base de datos y Redis (init.sql se ejecuta solo la primera vez)
+# 2. Base de datos, Redis y Mailpit (init.sql se ejecuta solo la primera vez)
 docker compose up -d
 
 # 3. Backend
@@ -69,7 +72,20 @@ go run ./cmd/api        # http://localhost:8080/api/health
 # 4. Frontend (otra terminal)
 cd frontend
 npm install
-npm run dev             # http://localhost:5173  (proxy /api -> :8080)
+npm run dev             # http://localhost:5173  (proxy /api -> APP_PORT)
+```
+
+- **Correos** (recuperación de contraseña y confirmación de envío): bandeja de Mailpit en http://localhost:8025.
+- **Puertos ocupados:** si ya hay un PostgreSQL o un servidor web local en 5432 u 8080, cambiar `POSTGRES_PORT` y `APP_PORT` en `.env`. Docker Compose, el backend y el proxy de Vite leen ese mismo archivo.
+- **Producción** (Nginx + backend + BD en contenedores): `docker compose -f docker-compose.prod.yml up -d --build`. En el VPS se usa `deploy.sh`.
+
+### Pruebas
+
+```bash
+cd backend && go vet ./... && go test ./...
+cd frontend && npm run lint && npm run build
+# E2E con Chrome headless (ver el encabezado de cada script en frontend/scripts/)
+node scripts/e2e-postulacion.mjs "<ruta a chrome>" http://localhost:5173   # con VITE_MOCK=true, o E2E_REAL=1 contra el backend
 ```
 
 Para reiniciar la base desde cero: `docker compose down -v && docker compose up -d`.

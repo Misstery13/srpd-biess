@@ -164,7 +164,13 @@ func setupAuthService() (AuthService, *mockAuthCache, *mockPostulanteRepo) {
 	emailSvc := &mockEmailService{}
 	jwtSecret := "12345678901234567890123456789012"
 
-	svc := NewAuthService(rcRepo, postRepo, cache, emailSvc, jwtSecret)
+	svc := NewAuthService(AuthConfig{
+		RCRepo:    rcRepo,
+		PostRepo:  postRepo,
+		Cache:     cache,
+		EmailSvc:  emailSvc,
+		JWTSecret: jwtSecret,
+	})
 	return svc, cache, postRepo
 }
 

@@ -54,7 +54,7 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 	// B2: Filtrar deleted_at IS NULL
 	queryHeader := `
 		SELECT id, codigo, postulante_id, cargo, respaldo_org, org_nombre, org_documento,
-		       estado, acepta_terminos, fecha_consentimiento, created_at, updated_at
+		       tiene_familiares, tiene_publicaciones, estado, acepta_terminos, fecha_consentimiento, created_at, updated_at
 		FROM postulaciones
 		WHERE postulante_id = $1 AND deleted_at IS NULL
 	`
@@ -67,6 +67,8 @@ func (r *pgxPostulacionRepository) ObtenerPorPostulanteID(ctx context.Context, p
 		&res.RespaldoOrg,
 		&res.OrgNombre,
 		&res.OrgDocumento,
+		&res.TieneFamiliares,
+		&res.TienePublicaciones,
 		&res.Estado,
 		&res.AceptaTerminos,
 		&res.FechaConsentimiento,
@@ -297,15 +299,15 @@ func (r *pgxPostulacionRepository) GuardarTransaccional(ctx context.Context, pos
 			WITH next_seq AS (
 				SELECT nextval('public.postulaciones_id_seq') AS seq_id
 			)
-			INSERT INTO postulaciones (id, codigo, postulante_id, cargo, respaldo_org, org_nombre, org_documento, estado)
+			INSERT INTO postulaciones (id, codigo, postulante_id, cargo, respaldo_org, org_nombre, org_documento, tiene_familiares, tiene_publicaciones, estado)
 			SELECT 
 				seq_id,
 				'BIESS-2026-' || LPAD(seq_id::text, 6, '0'),
-				$1, $2, $3, $4, $5, 'BORRADOR'
+				$1, $2, $3, $4, $5, $6, $7, 'BORRADOR'
 			FROM next_seq
 			RETURNING id, codigo
 		`
-		err = tx.QueryRow(ctx, insertHeader, postulanteID, p.Cargo, p.RespaldoOrg, p.OrgNombre, p.OrgDocumento).
+		err = tx.QueryRow(ctx, insertHeader, postulanteID, p.Cargo, p.RespaldoOrg, p.OrgNombre, p.OrgDocumento, p.TieneFamiliares, p.TienePublicaciones).
 			Scan(&postulacionID, &codigo)
 		if err != nil {
 			return "", fmt.Errorf("error al crear cabecera de postulacion: %w", err)
@@ -318,11 +320,12 @@ func (r *pgxPostulacionRepository) GuardarTransaccional(ctx context.Context, pos
 
 		updateHeader := `
 			UPDATE postulaciones
-			SET cargo = $2, respaldo_org = $3, org_nombre = $4, org_documento = $5, updated_at = now()
+			SET cargo = $2, respaldo_org = $3, org_nombre = $4, org_documento = $5,
+			    tiene_familiares = $6, tiene_publicaciones = $7, updated_at = now()
 			WHERE id = $1 AND deleted_at IS NULL
 			RETURNING codigo
 		`
-		err = tx.QueryRow(ctx, updateHeader, postulacionID, p.Cargo, p.RespaldoOrg, p.OrgNombre, p.OrgDocumento).
+		err = tx.QueryRow(ctx, updateHeader, postulacionID, p.Cargo, p.RespaldoOrg, p.OrgNombre, p.OrgDocumento, p.TieneFamiliares, p.TienePublicaciones).
 			Scan(&codigo)
 		if err != nil {
 			return "", fmt.Errorf("error al actualizar cabecera de postulacion: %w", err)

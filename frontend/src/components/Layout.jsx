@@ -7,8 +7,8 @@ export default function Layout() {
   const { autenticado, cerrarSesion } = useAuth()
   return (
     <div className="flex min-h-screen flex-col">
-      <div className="franja-biess h-1.5" aria-hidden="true" />
-      <header className="border-b border-slate-200 bg-white">
+      <div className="franja-biess h-1.5 print:hidden" aria-hidden="true" />
+      <header className="border-b border-slate-200 bg-white print:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link to="/" className="flex min-w-0 items-center gap-3 sm:gap-4">
             <img src="/logo-biess.png" alt="BIESS" width="480" height="175" className="h-9 w-auto shrink-0 sm:h-11" />

@@ -10,11 +10,11 @@ import (
 
 // PostulanteHandler maneja los endpoints relacionados al postulante y su perfil (EF-12).
 type PostulanteHandler struct {
-	svc *service.PostulanteService
+	svc service.PostulanteService
 }
 
 // NewPostulanteHandler crea una nueva instancia de PostulanteHandler.
-func NewPostulanteHandler(svc *service.PostulanteService) *PostulanteHandler {
+func NewPostulanteHandler(svc service.PostulanteService) *PostulanteHandler {
 	return &PostulanteHandler{svc: svc}
 }
 

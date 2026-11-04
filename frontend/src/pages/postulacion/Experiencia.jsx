@@ -4,6 +4,7 @@ import { AreaTexto, Campo, Seleccion } from '../../components/Formulario.jsx'
 import ListaEditable from '../../components/ListaEditable.jsx'
 import { aFechaApi, AREAS, calcularDuracion, deFechaApi, LIMITE_GENERAL, sumarDuraciones, textoDuracion, TIPOS_EXPERIENCIA } from '../../utils/ef12.js'
 import { fechaUI, hoy, nombreOpcion } from './comun.js'
+import { fechaEnRango, revisarTexto } from '../../utils/validaciones.js'
 import Seccion from './Seccion.jsx'
 
 const nuevo = () => ({ tipo: '', cargo: '', institucion: '', fecha_inicio: '', fecha_fin: '', actual: false, area: '', funciones: '', documento: null })
@@ -11,17 +12,18 @@ const nuevo = () => ({ tipo: '', cargo: '', institucion: '', fecha_inicio: '', f
 function validar(f) {
   const e = {}
   if (!TIPOS_EXPERIENCIA.some(([c]) => c === f.tipo)) e.tipo = 'Seleccione el tipo de experiencia.'
-  if (!f.cargo.trim()) e.cargo = 'Ingrese el cargo o puesto.'
-  if (!f.institucion.trim()) e.institucion = 'Ingrese la institución o empresa.'
+  revisarTexto(e, 'cargo', f.cargo, { vacio: 'Ingrese el cargo o puesto.' })
+  revisarTexto(e, 'institucion', f.institucion, { vacio: 'Ingrese la institución o empresa.' })
   if (!f.fecha_inicio) e.fecha_inicio = 'Ingrese la fecha de inicio.'
-  else if (f.fecha_inicio > hoy()) e.fecha_inicio = 'La fecha de inicio no puede ser futura.'
+  else if (!fechaEnRango(f.fecha_inicio, hoy())) e.fecha_inicio = 'Ingrese una fecha entre 1900 y hoy (no futura).'
   if (!f.actual) {
     if (!f.fecha_fin) e.fecha_fin = 'Ingrese la fecha de finalización o marque "Trabajo actual".'
-    else if (f.fecha_fin > hoy()) e.fecha_fin = 'La fecha de finalización no puede ser futura.'
+    else if (!fechaEnRango(f.fecha_fin, hoy())) e.fecha_fin = 'La fecha de finalización no puede ser futura.'
     else if (f.fecha_inicio && f.fecha_fin < f.fecha_inicio) e.fecha_fin = 'La fecha de finalización no puede ser anterior a la de inicio.' // V7
   }
   if (!AREAS.includes(f.area)) e.area = 'Seleccione el área de las actividades.'
   if (f.funciones.length > 1000) e.funciones = 'Máximo 1000 caracteres.' // V8
+  else revisarTexto(e, 'funciones', f.funciones)
   if (!f.documento) e.documento = 'Cargue el documento de respaldo.'
   return e
 }
@@ -36,9 +38,9 @@ function FormExperiencia({ valor, onChange, errores }) {
       <Campo id="exp-cargo" etiqueta="Cargo o puesto" maxLength={150} required value={valor.cargo} onChange={set('cargo')} error={errores.cargo} />
       <Campo id="exp-institucion" etiqueta="Institución o empresa" maxLength={150} required value={valor.institucion} onChange={set('institucion')} error={errores.institucion} />
       <Seleccion id="exp-area" etiqueta="Actividades relacionadas a" opciones={AREAS} required value={valor.area} onChange={set('area')} error={errores.area} />
-      <Campo id="exp-inicio" etiqueta="Fecha inicio" type="date" max={hoy()} required value={valor.fecha_inicio} onChange={set('fecha_inicio')} error={errores.fecha_inicio} />
+      <Campo id="exp-inicio" etiqueta="Fecha inicio" type="date" min="1900-01-01" max={hoy()} required value={valor.fecha_inicio} onChange={set('fecha_inicio')} error={errores.fecha_inicio} />
       <div className="flex flex-col gap-2">
-        <Campo id="exp-fin" etiqueta="Fecha finalización" type="date" max={hoy()} disabled={valor.actual} value={valor.actual ? '' : valor.fecha_fin} onChange={set('fecha_fin')} error={errores.fecha_fin} />
+        <Campo id="exp-fin" etiqueta="Fecha finalización" type="date" min="1900-01-01" max={hoy()} disabled={valor.actual} value={valor.actual ? '' : valor.fecha_fin} onChange={set('fecha_fin')} error={errores.fecha_fin} />
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={valor.actual} onChange={(e) => onChange({ ...valor, actual: e.target.checked, fecha_fin: '' })} />
           <span>Trabajo actual</span>

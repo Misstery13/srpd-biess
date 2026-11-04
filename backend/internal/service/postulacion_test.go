@@ -258,12 +258,12 @@ func TestPostulacionService_LimpiezaArchivosHuerfanos(t *testing.T) {
 
 	oldP := &model.PostulacionCompleta{
 		Experiencia: []model.ExperienciaLaboral{
-			{Tipo: "GENERAL", Cargo: "Dev", Institucion: "Corp", FechaInicio: time.Now(), Area: "Finanzas", Documento: &docViejoRel},
+			{Tipo: "GENERAL", Cargo: "Dev", Institucion: "Corp", FechaInicio: time.Now().In(zonaEcuador), Area: "Finanzas", Documento: &docViejoRel},
 		},
 	}
 	newP := &model.PostulacionCompleta{
 		Experiencia: []model.ExperienciaLaboral{
-			{Tipo: "GENERAL", Cargo: "Dev", Institucion: "Corp", FechaInicio: time.Now(), Area: "Finanzas", Documento: &docNuevoRel},
+			{Tipo: "GENERAL", Cargo: "Dev", Institucion: "Corp", FechaInicio: time.Now().In(zonaEcuador), Area: "Finanzas", Documento: &docNuevoRel},
 		},
 	}
 

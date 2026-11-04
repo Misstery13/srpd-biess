@@ -8,19 +8,23 @@ import (
 	"github.com/Misstery13/srpd-biess/backend/internal/repository"
 )
 
-// PeriodoService gestiona la lógica del periodo de postulación.
-type PeriodoService struct {
+// PeriodoService gestiona la lógica del periodo de postulación (T2).
+type PeriodoService interface {
+	ObtenerPeriodo(ctx context.Context) (*model.Periodo, error)
+}
+
+type periodoService struct {
 	repo repository.PeriodoRepository
 }
 
 // NewPeriodoService crea una instancia de PeriodoService.
-func NewPeriodoService(repo repository.PeriodoRepository) *PeriodoService {
-	return &PeriodoService{repo: repo}
+func NewPeriodoService(repo repository.PeriodoRepository) PeriodoService {
+	return &periodoService{repo: repo}
 }
 
 // ObtenerPeriodo devuelve el estado del periodo de postulación actual (T2).
 // Si no hay periodo configurado, retorna abierto=false con fechas cero.
-func (s *PeriodoService) ObtenerPeriodo(ctx context.Context) (*model.Periodo, error) {
+func (s *periodoService) ObtenerPeriodo(ctx context.Context) (*model.Periodo, error) {
 	row, err := s.repo.ObtenerPeriodoActivo(ctx)
 	if err != nil {
 		return nil, err
