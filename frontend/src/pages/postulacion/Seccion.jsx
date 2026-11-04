@@ -4,7 +4,8 @@ import { Alerta, Boton } from '../../components/Formulario.jsx'
 // Contenedor de cada sección: título, "Guardar progreso" y mensajes (E5).
 // onGuardar() devuelve { campo: mensaje } si hay errores de validación, o persiste y no devuelve nada.
 // soloLectura deshabilita todo con <fieldset disabled> (período cerrado o postulación enviada).
-export default function Seccion({ titulo, descripcion, onGuardar, soloLectura, textoBoton = 'Guardar progreso', children }) {
+// errores._seccion: mensaje para toda la sección (p. ej. lista vacía). mensajeOk = null: no muestra "Información guardada."
+export default function Seccion({ titulo, descripcion, onGuardar, soloLectura, textoBoton = 'Guardar progreso', mensajeOk = 'Información guardada.', children }) {
   const [estado, setEstado] = useState({ cargando: false, error: '', ok: false })
 
   async function enviar(e) {
@@ -18,7 +19,7 @@ export default function Seccion({ titulo, descripcion, onGuardar, soloLectura, t
     try {
       const errores = await onGuardar()
       if (errores && Object.keys(errores).length) {
-        setEstado({ cargando: false, error: 'Revise los campos marcados.', ok: false })
+        setEstado({ cargando: false, error: errores._seccion ?? 'Revise los campos marcados.', ok: false })
         return
       }
       setEstado({ cargando: false, error: '', ok: true })
@@ -42,7 +43,7 @@ export default function Seccion({ titulo, descripcion, onGuardar, soloLectura, t
               <div className="w-full sm:w-56">
                 <Boton cargando={estado.cargando}>{textoBoton}</Boton>
               </div>
-              {estado.ok && <Alerta tipo="info">Información guardada.</Alerta>}
+              {estado.ok && mensajeOk && <Alerta tipo="info">{mensajeOk}</Alerta>}
             </div>
           )}
         </fieldset>

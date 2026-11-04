@@ -63,7 +63,11 @@ const resumenFormacion = (f) => (
 
 export default function Formacion({ postulacion, guardar, soloLectura }) {
   const [lista, setLista] = useState(() => (postulacion?.formacion ?? []).map(desdeApi))
-  const onGuardar = () => guardar({ formacion: lista.map(aApi) })
+  // Sin registros ahora ni guardados antes no hay nada que guardar (vaciar una lista guardada sí es un cambio)
+  const onGuardar = () =>
+    lista.length === 0 && !postulacion?.formacion?.length
+      ? { _seccion: 'No ha registrado títulos. Use "+ Agregar" para registrar.' }
+      : guardar({ formacion: lista.map(aApi) })
 
   return (
     <Seccion titulo="Formación académica" onGuardar={onGuardar} soloLectura={soloLectura} textoBoton="Guardar información">

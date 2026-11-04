@@ -87,7 +87,7 @@ ok((await texto('[data-personal]'))?.includes('JUAN CARLOS'), '1.1 datos del Reg
 ok((await texto('[data-personal]'))?.includes('MARÍA ELENA TORRES'), '1.1.7.1 casado: se muestran los datos de la pareja')
 ok(!(await existe('[data-personal] input')), '1.1 información personal en solo lectura (P6)')
 await boton('[data-seccion=personal]', 'Guardar', 600)
-ok((await texto('[data-seccion=personal] output')) === 'Información guardada.' && (await texto('[data-codigo]')) === 'BIESS-2026-000001', '1.1.8 "Guardar" crea el borrador con su código único')
+ok((await texto('[data-codigo-info]'))?.includes('BIESS-2026-000001') && !(await existe('[data-seccion=personal] output')) && (await texto('[data-codigo]')) === 'BIESS-2026-000001', '1.1.8 "Guardar" crea el borrador con su código único')
 ok(!(await js(`document.querySelector('[data-seccion=domicilio]').hidden`)), '#33 tras "Guardar" pasa a Domicilio y contacto')
 
 // Domicilio
@@ -171,6 +171,8 @@ ok((await texto(`${C} output:last-of-type`)) === 'Información guardada.' || (aw
 // Formación
 const FO = '[data-seccion=formacion]'
 await pestana('Formación académica')
+await boton('[data-seccion=formacion]', 'Guardar información', 400)
+ok((await texto('[data-seccion=formacion]'))?.includes('No ha registrado títulos. Use "+ Agregar"') && !(await existe('[data-seccion=formacion] output')), 'lista vacía: no dice "Información guardada" sin nada que guardar')
 await boton(FO, '+ Agregar')
 ok((await js(`[...document.querySelector('#for-nivel').options].map(o => o.text).slice(1).join('|')`)) === 'Tercer Nivel de Grado|Cuarto Nivel - Especialidad Académica|Cuarto Nivel - Maestría Académica|Cuarto Nivel PhD - Doctorado', '1.5.1 niveles del documento')
 await elegir('#for-nivel', 'Cuarto Nivel - Maestría Académica')
