@@ -154,7 +154,9 @@ ok((await texto(`${F} output`)) === 'Información guardada.', '1.3.1.7 Guardar i
 // Cargo
 const C = '[data-seccion=cargo]'
 await pestana('Cargo')
-await clic('input[name=cargo][value=AFILIADOS]', 600)
+await clic('input[name=cargo][value=AFILIADOS]', 300)
+ok((await existe(`${C} [data-confirmar-cargo]`)) && !(await texto(`${C} output`)), '1.4 elegir cargo pide confirmación antes de validar con el IESS')
+await boton(C, 'Sí, verificar', 600)
 ok((await texto(`${C} output`)) === 'Postulante afiliado al IESS', '1.4.1.1 afiliado: "Postulante afiliado al IESS"')
 ok((await texto(`${C} fieldset legend`)) !== null && (await js(`document.querySelector('${C}').textContent.includes('organización de trabajadores')`)), '1.4.1.3 pregunta de respaldo de organización de trabajadores')
 await siNo('respaldo', true)
@@ -290,7 +292,11 @@ ok((await existe('[data-cierre]')) && (await texto('[data-cierre]'))?.includes('
 // ===== C. Jubilada no afiliada (0912345675) elige Afiliados =====
 await sesion('0912345675')
 await pestana('Cargo')
-await clic('input[name=cargo][value=AFILIADOS]', 700)
+await clic('input[name=cargo][value=AFILIADOS]', 300)
+await boton('[data-seccion=cargo]', 'Cancelar', 300)
+ok(!(await existe('[data-cierre]')) && !(await js(`document.querySelector('input[name=cargo][value=AFILIADOS]').checked`)), '1.4 "Cancelar" no valida ni cierra')
+await clic('input[name=cargo][value=AFILIADOS]', 300)
+await boton('[data-seccion=cargo]', 'Sí, verificar', 700)
 ok(
   (await texto('[data-cierre]'))?.includes('Postulante No Afiliado al IESS') &&
     (await texto('[data-cierre]'))?.includes('NO puede continuar, por cuanto no mantiene la calidad de afiliado al IESS'),
