@@ -230,7 +230,13 @@ await boton('[data-seccion=capacitacion]', 'Cancelar')
 // Envío bloqueado sin inhabilidades
 const V = '[data-seccion=envio]'
 await pestana('Guardar y enviar')
-ok((await texto(`${V} [data-pendientes]`))?.includes('Inhabilidades'), 'envío: avisa que faltan las inhabilidades')
+ok(!(await existe(`${V} [data-consentimiento]`)), '1.10.1 consentimiento aparece solo al pulsar "Guardar Postulación"')
+ok((await js(`[...document.querySelectorAll('${V} button')].find(b => b.textContent.trim() === 'Imprimir formulario').disabled`)) && (await texto(V))?.includes('Disponible después de enviar la postulación') && !(await existe('article')), 'imprimir solo después de enviar (botón y Ctrl+P)')
+await boton(V, 'Guardar Postulación', 600)
+ok((await cuenta(`${V} [data-consentimiento] input[type=checkbox]`)) === 5, '1.10.1 los 5 textos de consentimiento')
+ok((await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].every(c => !c.checked)`)), 'L1 casillas sin marcar por defecto')
+await clic(`${V} [data-enviar]`, 300)
+ok((await texto(`${V} [data-aviso]`)) === 'Falta guardar: Inhabilidades.', 'envío: al pulsar "Enviar" dice en una línea qué falta guardar')
 
 // Inhabilidades
 const I = '[data-seccion=inhabilidades]'
@@ -251,21 +257,18 @@ ok((await texto(`${I} output`)) === 'Información guardada.', '1.9 inhabilidades
 
 // Guardar y enviar con consentimiento
 await pestana('Guardar y enviar')
-ok(!(await existe(`${V} [data-pendientes]`)), 'envío: sin secciones pendientes')
-ok(!(await existe(`${V} [data-consentimiento]`)), '1.10.1 consentimiento aparece solo al pulsar "Guardar Postulación"')
-await boton(V, 'Guardar Postulación', 600)
-ok((await cuenta(`${V} [data-consentimiento] input[type=checkbox]`)) === 5, '1.10.1 los 5 textos de consentimiento')
-ok((await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].every(c => !c.checked)`)), 'L1 casillas sin marcar por defecto')
-ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 "Enviar Postulación" deshabilitado sin aceptar')
+await clic(`${V} [data-enviar]`, 300)
+ok((await texto(`${V} [data-aviso]`)) === 'Marque las 5 declaraciones (faltan 5).', 'L1 no envía sin aceptar las declaraciones')
 await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].slice(0, 4).forEach(c => c.click())`)
-ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 sigue deshabilitado con 4 de 5')
+await clic(`${V} [data-enviar]`, 300)
+ok((await texto(`${V} [data-aviso]`)) === 'Marque las 5 declaraciones (falta 1).' && !(await texto(`${V} output`))?.includes('fue enviada'), 'L1 no envía con 4 de 5')
 await js(`document.querySelectorAll('${V} [data-consentimiento] input')[4].click()`)
 await esperar(100)
 // El envío espera al correo de confirmación (SMTP síncrono): en modo desarrollo tarda ~1 s
 await clic(`${V} [data-enviar]`, 2500)
 ok((await texto(`${V} output`))?.includes('BIESS-2026-000001 fue enviada'), '1.10.3 postulación enviada')
 ok(await js(`document.querySelector('[data-seccion=domicilio] fieldset').disabled`), 'P3 enviada: formulario en solo lectura')
-ok(await existe(String.raw`article.print\:block`), '1.10.2 formulario imprimible con firma, nombres y cédula')
+ok(await existe(String.raw`article.print\:block`) && !(await js(`[...document.querySelectorAll('${V} button')].find(b => b.textContent.trim() === 'Imprimir formulario').disabled`)), '1.10.2 enviada: formulario imprimible con firma, nombres y cédula')
 ok((await texto('article'))?.includes('Firma del postulante') && (await texto('article'))?.includes('C.I. 1710034065'), '1.10.2 firma, nombres y cédula en el impreso')
 ok(await js(`document.querySelector('header').classList.contains('print:hidden')`), '#33 el impreso no incluye encabezado ni "Cerrar sesión"')
 // El mock guarda en memoria: recargar solo tiene sentido contra el backend real

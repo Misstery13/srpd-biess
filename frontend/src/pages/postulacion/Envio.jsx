@@ -12,6 +12,7 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
   const [mostrarConsentimiento, setMostrarConsentimiento] = useState(false)
   const [aceptados, setAceptados] = useState(() => CONSENTIMIENTOS.map(() => false))
   const [estado, setEstado] = useState({ cargando: false, error: '' })
+  const [aviso, setAviso] = useState('') // por qué no se envió (en una línea)
   const pendientes = faltantes(postulacion)
 
   async function ejecutar(accion) {
@@ -30,11 +31,20 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
       setMostrarConsentimiento(true)
     })
 
-  const enviar = () =>
-    ejecutar(async () => {
+  const enviar = () => {
+    const faltan = aceptados.filter((a) => !a).length
+    const motivo = pendientes.length
+      ? `Falta guardar: ${pendientes.join(', ')}.`
+      : faltan
+        ? `Marque las ${CONSENTIMIENTOS.length} declaraciones (${faltan === 1 ? 'falta 1' : `faltan ${faltan}`}).`
+        : ''
+    setAviso(motivo)
+    if (motivo) return
+    return ejecutar(async () => {
       const { codigo } = await enviarPostulacion()
       onEnviada(codigo)
     })
+  }
 
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -49,17 +59,6 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
       ) : (
         <fieldset disabled={soloLectura || estado.cargando} className="mt-4 flex min-w-0 flex-col gap-4">
           <Alerta>{estado.error}</Alerta>
-          {pendientes.length > 0 && (
-            <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" data-pendientes>
-              <p className="font-medium">Para enviar la postulación falta guardar:</p>
-              <ul className="mt-1 list-disc pl-5">
-                {pendientes.map((p) => (
-                  <li key={p}>{p}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           <div>
             <button type="button" onClick={guardarPostulacion} className={`${boton} bg-marca-700 text-white hover:bg-marca-800`}>
               Guardar Postulación
@@ -87,21 +86,28 @@ export default function Envio({ postulacion, guardar, soloLectura, enviada, onEn
                 <button
                   type="button"
                   onClick={enviar}
-                  disabled={!aceptados.every(Boolean) || pendientes.length > 0}
                   className={`${boton} bg-marca-700 text-white hover:bg-marca-800`}
                   data-enviar
                 >
                   {estado.cargando ? 'Enviando…' : 'Enviar Postulación'}
                 </button>
+                {aviso && (
+                  <p role="alert" className="mt-2 text-sm text-red-700" data-aviso>
+                    {aviso}
+                  </p>
+                )}
               </div>
             </div>
           )}
         </fieldset>
       )}
 
-      {/* 1.10.1 punto 5: el formulario se imprime y se firma a mano */}
-      <div className="mt-4 border-t border-slate-200 pt-4">
-        <BotonLinea onClick={() => window.print()}>Imprimir formulario</BotonLinea>
+      {/* 1.10.1 punto 5: se imprime y firma a mano lo que se envió, así que solo después de enviar */}
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-slate-200 pt-4">
+        <BotonLinea onClick={() => window.print()} disabled={!enviada}>
+          Imprimir formulario
+        </BotonLinea>
+        {!enviada && <span className="text-sm text-slate-500">Disponible después de enviar la postulación.</span>}
       </div>
     </section>
   )
