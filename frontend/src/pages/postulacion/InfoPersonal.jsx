@@ -1,0 +1,44 @@
+import { tienePareja } from '../../utils/ef12.js'
+import { fechaUI } from './comun.js'
+import Seccion from './Seccion.jsx'
+
+// 1.1: datos del Registro Civil, solo lectura (P6); pareja si es casado/a o unión de hecho (1.1.7.1)
+// 1.1.8 "Guardar": no hay nada que editar, así que crea el borrador de la postulación y su código único y pasa a la sección 1.2
+export default function InfoPersonal({ postulacion, perfil, guardar, soloLectura, irA }) {
+  const datos = [
+    ['Nombres', perfil.nombres],
+    ['Apellidos', perfil.apellidos],
+    ['Cédula', perfil.cedula],
+    ['Género', perfil.genero],
+    ['Fecha de nacimiento', fechaUI(perfil.fecha_nacimiento)],
+    ['Nacionalidad', perfil.nacionalidad],
+    ['Estado civil', perfil.estado_civil],
+  ]
+  if (tienePareja(perfil.estado_civil)) {
+    datos.push(['Pareja: nombres y apellidos', perfil.conyuge_nombres], ['Pareja: cédula', perfil.conyuge_cedula])
+  }
+
+  return (
+    <Seccion titulo="Información personal" descripcion="Datos obtenidos del Registro Civil del Ecuador. No se pueden modificar."
+      onGuardar={async () => {
+        await guardar({})
+        irA('domicilio')
+      }}
+      soloLectura={soloLectura}
+      textoBoton="Guardar"
+      mensajeOk={null}
+    >
+      <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2" data-personal>
+        {datos.map(([etiqueta, valor]) => (
+          <div key={etiqueta}>
+            <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{etiqueta}</dt>
+            <dd className="text-slate-900">{valor || '—'}</dd>
+          </div>
+        ))}
+      </dl>
+      <p className="text-sm text-slate-600" data-codigo-info>
+        {postulacion?.codigo ? `Código de postulación generado: ${postulacion.codigo}.` : 'Al guardar se genera su código de postulación y puede continuar con el formulario.'}
+      </p>
+    </Seccion>
+  )
+}

@@ -15,14 +15,16 @@ CREATE TABLE provincias (
     id      SERIAL PRIMARY KEY,
     pais_id INT NOT NULL REFERENCES paises(id),
     nombre  VARCHAR(80) NOT NULL,
-    UNIQUE (pais_id, nombre)
+    UNIQUE (pais_id, nombre),
+    UNIQUE (id, pais_id)          -- destino de la FK compuesta de domicilios
 );
 
 CREATE TABLE cantones (
     id           SERIAL PRIMARY KEY,
     provincia_id INT NOT NULL REFERENCES provincias(id),
     nombre       VARCHAR(80) NOT NULL,
-    UNIQUE (provincia_id, nombre)
+    UNIQUE (provincia_id, nombre),
+    UNIQUE (id, provincia_id)     -- destino de la FK compuesta de domicilios
 );
 
 -- =========================================================
@@ -46,30 +48,74 @@ CREATE TABLE registro_civil (
 );
 
 -- =========================================================
+-- Seguridad: roles y permisos (RBAC mínimo, R1–R4)
+-- Borrado lógico con deleted_at; unicidad solo entre registros activos (índices parciales)
+-- =========================================================
+CREATE TABLE rol (
+    id         SERIAL PRIMARY KEY,
+    codigo     VARCHAR(30)  NOT NULL,
+    nombre     VARCHAR(100) NOT NULL,
+    deleted_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX rol_codigo_activo ON rol (codigo) WHERE deleted_at IS NULL;
+
+-- Un permiso = el rol puede llamar a ese método sobre esa ruta (patrón de Gin, c.FullPath())
+CREATE TABLE permiso (
+    id         SERIAL PRIMARY KEY,
+    rol_id     INT NOT NULL REFERENCES rol(id),
+    metodo     VARCHAR(6)   NOT NULL CHECK (metodo IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE')),
+    ruta       VARCHAR(150) NOT NULL,
+    deleted_at TIMESTAMPTZ
+);
+CREATE UNIQUE INDEX permiso_activo ON permiso (rol_id, metodo, ruta) WHERE deleted_at IS NULL;
+
+-- =========================================================
+-- Período de postulación (EF-11 p.1, EF-1 restricciones temporales, EF-13 p.2)
+-- =========================================================
+CREATE TABLE periodo_postulacion (
+    id         SERIAL PRIMARY KEY,
+    nombre     VARCHAR(100) NOT NULL,
+    inicio     TIMESTAMPTZ  NOT NULL,
+    fin        TIMESTAMPTZ  NOT NULL,
+    deleted_at TIMESTAMPTZ,
+    CHECK (fin > inicio)
+);
+
+-- =========================================================
 -- Postulantes y postulaciones (EF-11 / EF-12)
 -- =========================================================
 CREATE TABLE postulantes (
     id            SERIAL PRIMARY KEY,
-    cedula        CHAR(10) NOT NULL UNIQUE REFERENCES registro_civil(cedula),
-    email         VARCHAR(150) NOT NULL UNIQUE,
+    cedula        CHAR(10) NOT NULL REFERENCES registro_civil(cedula),
+    email         VARCHAR(150) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    rol_id        INT NOT NULL REFERENCES rol(id),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at    TIMESTAMPTZ               -- B1: baja lógica; datos de contacto se anonimizan (B4)
 );
+CREATE UNIQUE INDEX postulantes_cedula_activa ON postulantes (cedula) WHERE deleted_at IS NULL;
+CREATE UNIQUE INDEX postulantes_email_activo  ON postulantes (lower(email)) WHERE deleted_at IS NULL;
 
 CREATE TABLE postulaciones (
     id            SERIAL PRIMARY KEY,
-    codigo        VARCHAR(20) NOT NULL UNIQUE,  -- código de numeración único
-    postulante_id INT NOT NULL REFERENCES postulantes(id) ON DELETE CASCADE,
-    cargo         VARCHAR(20) CHECK (cargo IN ('AFILIADOS', 'JUBILADOS', 'EMPLEADORES')),
+    codigo        VARCHAR(20) NOT NULL UNIQUE,  -- código de numeración único (nunca se reutiliza)
+    postulante_id INT NOT NULL REFERENCES postulantes(id),
+    cargo        VARCHAR(20) CHECK (cargo IN ('AFILIADOS', 'JUBILADOS', 'EMPLEADORES')),
     respaldo_org  BOOLEAN,
     org_nombre    VARCHAR(200),
     org_documento VARCHAR(255),                 -- ruta al PDF (máx 4 MB)
+    tiene_familiares    BOOLEAN,                -- 1.3.1 Sí/No (NULL = sin responder)
+    tiene_publicaciones BOOLEAN,                -- 1.7 Sí/No (NULL = sin responder)
     estado        VARCHAR(20) NOT NULL DEFAULT 'BORRADOR'
                   CHECK (estado IN ('BORRADOR', 'ENVIADA', 'CERRADA')),
     acepta_terminos BOOLEAN NOT NULL DEFAULT FALSE,
+    fecha_consentimiento TIMESTAMPTZ,           -- LOPDP: cuándo aceptó
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at    TIMESTAMPTZ
 );
+-- Una sola postulación activa por postulante (P1)
+CREATE UNIQUE INDEX postulaciones_postulante_activa ON postulaciones (postulante_id) WHERE deleted_at IS NULL;
 
 CREATE TABLE domicilios (
     postulacion_id   INT PRIMARY KEY REFERENCES postulaciones(id) ON DELETE CASCADE,
@@ -86,7 +132,11 @@ CREATE TABLE domicilios (
     sector           VARCHAR(100),
     referencia       VARCHAR(255),
     telefono         VARCHAR(15),
-    CHECK (canton_id IS NOT NULL OR ciudad_texto IS NOT NULL)
+    CHECK (canton_id IS NOT NULL OR ciudad_texto IS NOT NULL),
+    -- Ecuador: provincia y cantón van juntos; el cantón es de esa provincia y la provincia de ese país
+    CHECK ((provincia_id IS NULL) = (canton_id IS NULL)),
+    FOREIGN KEY (provincia_id, pais_id) REFERENCES provincias (id, pais_id),
+    FOREIGN KEY (canton_id, provincia_id) REFERENCES cantones (id, provincia_id)
 );
 
 CREATE TABLE familiares_iess (
@@ -124,6 +174,52 @@ CREATE TABLE experiencia_laboral (
     funciones      VARCHAR(1000),
     documento      VARCHAR(255),
     CHECK (fecha_fin IS NULL OR fecha_fin >= fecha_inicio)
+);
+
+CREATE TABLE publicaciones (
+    id                  SERIAL PRIMARY KEY,
+    postulacion_id      INT NOT NULL REFERENCES postulaciones(id) ON DELETE CASCADE,
+    titulo              VARCHAR(250) NOT NULL,
+    tipo                VARCHAR(30)  NOT NULL CHECK (tipo IN ('PUBLICACION', 'INVESTIGACION')),
+    medio               VARCHAR(200) NOT NULL,
+    fecha               DATE NOT NULL,
+    relacion_profesional BOOLEAN NOT NULL DEFAULT FALSE,
+    documento           VARCHAR(255)
+);
+
+CREATE TABLE capacitaciones (
+    id             SERIAL PRIMARY KEY,
+    postulacion_id INT NOT NULL REFERENCES postulaciones(id) ON DELETE CASCADE,
+    tipo_evento    VARCHAR(20)  NOT NULL CHECK (tipo_evento IN ('CURSO', 'SEMINARIO', 'TALLER')),
+    nombre_evento  VARCHAR(200) NOT NULL,
+    institucion    VARCHAR(150) NOT NULL,
+    fecha_inicio   DATE NOT NULL,
+    fecha_fin      DATE NOT NULL,
+    horas          INT NOT NULL CHECK (horas > 0),
+    documento      VARCHAR(255),
+    CHECK (fecha_fin >= fecha_inicio)
+);
+
+CREATE TABLE inhabilidades (
+    postulacion_id                    INT PRIMARY KEY REFERENCES postulaciones(id) ON DELETE CASCADE,
+    goce_derechos_politicos          BOOLEAN NOT NULL,
+    inhabilitado_comercio             BOOLEAN NOT NULL,
+    mora_obligaciones_estado         BOOLEAN NOT NULL,
+    vinculo_sistema_financiero        BOOLEAN NOT NULL,
+    funcionario_iess_biess            BOOLEAN NOT NULL,
+    interes_aseguradoras              BOOLEAN NOT NULL,
+    removido_control                  BOOLEAN NOT NULL,
+    removido_institucion              VARCHAR(200),
+    removido_cargo                    VARCHAR(100),
+    removido_fecha_fin                DATE,
+    removido_motivo                   VARCHAR(500),
+    obligaciones_sri                  BOOLEAN NOT NULL,
+    castigo_obligaciones_financieras  BOOLEAN NOT NULL,
+    litigio_iess_biess                BOOLEAN NOT NULL,
+    procesado_corrupcion              BOOLEAN NOT NULL,
+    responsabilidad_contraloria       BOOLEAN NOT NULL,
+    registrado_uafe                   BOOLEAN NOT NULL,
+    CHECK (NOT removido_control OR (removido_institucion IS NOT NULL AND removido_motivo IS NOT NULL))
 );
 
 -- =========================================================
@@ -251,9 +347,33 @@ VALUES
  'MARÍA ELENA TORRES','1712345678','2020-03-15','V4443V4444', TRUE,  FALSE, FALSE),
 ('0912345675','ANA LUCÍA','MORA VEGA','FEMENINO','1955-09-30','ECUATORIANA','SOLTERO',
  NULL, NULL,'2019-11-02','E1234I5678', FALSE, TRUE,  FALSE),
-('0102030405','PEDRO','SALAZAR RUIZ','MASCULINO','1975-01-20','ECUATORIANA','DIVORCIADO',
+('0102030400','PEDRO','SALAZAR RUIZ','MASCULINO','1975-01-20','ECUATORIANA','DIVORCIADO',
  NULL, NULL,'2021-07-08','A1111B2222', FALSE, FALSE, TRUE),
-('1798765432','CARLOS','GÓMEZ DÍAZ','MASCULINO','1985-02-14','COLOMBIANA','SOLTERO',
+('1754321980','CARLOS','GÓMEZ DÍAZ','MASCULINO','1985-02-14','COLOMBIANA','SOLTERO',
  NULL, NULL,'2022-01-10','C3333D4444', TRUE,  FALSE, FALSE);
+
+-- =========================================================
+-- Semilla: roles, permisos y período
+-- =========================================================
+INSERT INTO rol (codigo, nombre) VALUES
+('POSTULANTE', 'Postulante - usuario externo'),
+('ADMIN',      'Administrador - Comisión de Selección');  -- sin pantallas: EF-13 fuera de alcance
+
+-- Rutas protegidas del contrato (fase-0-acuerdos.md); las públicas no necesitan permiso
+INSERT INTO permiso (rol_id, metodo, ruta)
+SELECT r.id, v.metodo, v.ruta
+FROM rol r, (VALUES
+    ('GET',    '/api/postulante/me'),
+    ('DELETE', '/api/postulante/me'),
+    ('POST',   '/api/postulacion/validar-cargo'),
+    ('GET',    '/api/postulacion'),
+    ('PUT',    '/api/postulacion'),
+    ('POST',   '/api/postulacion/documentos'),
+    ('POST',   '/api/postulacion/enviar')
+) AS v(metodo, ruta)
+WHERE r.codigo = 'POSTULANTE';
+
+INSERT INTO periodo_postulacion (nombre, inicio, fin) VALUES
+('Concurso Directorio BIESS 2026', '2026-10-01 00:00-05', '2026-11-30 23:59-05');
 
 COMMIT;

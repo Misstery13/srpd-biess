@@ -17,7 +17,11 @@ backend/bin/
 .idea/
 .DS_Store
 Thumbs.db
+.codegraph/
 
 # Claude
 .claude/
 CLAUDE.md
+
+# Archivos subidos por postulantes
+backend/uploads/
