@@ -10,11 +10,11 @@ import (
 
 // PeriodoHandler maneja las peticiones HTTP del periodo de postulación.
 type PeriodoHandler struct {
-	svc *service.PeriodoService
+	svc service.PeriodoService
 }
 
 // NewPeriodoHandler crea una instancia de PeriodoHandler.
-func NewPeriodoHandler(svc *service.PeriodoService) *PeriodoHandler {
+func NewPeriodoHandler(svc service.PeriodoService) *PeriodoHandler {
 	return &PeriodoHandler{svc: svc}
 }
 
