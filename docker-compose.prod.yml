@@ -35,7 +35,7 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_ADDR: redis:6379
-      SMTP_HOST: mailpit
+      SMTP_HOST: ${SMTP_HOST:-mailpit} # correo real: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD y SMTP_FROM en .env
     volumes:
       - uploads:/uploads
     depends_on:

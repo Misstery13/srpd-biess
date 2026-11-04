@@ -20,19 +20,21 @@ type smtpEmailService struct {
 	host   string
 	port   string
 	appURL string
+	from   string
+	auth   smtp.Auth // nil sin usuario (Mailpit); con usuario, PLAIN sobre STARTTLS (smtp.SendMail lo activa solo)
 }
 
-func NewEmailService(host, port, appURL string) EmailService {
-	return &smtpEmailService{
-		host:   host,
-		port:   port,
-		appURL: appURL,
+func NewEmailService(host, port, appURL, usuario, clave, from string) EmailService {
+	s := &smtpEmailService{host: host, port: port, appURL: appURL, from: from}
+	if usuario != "" {
+		s.auth = smtp.PlainAuth("", usuario, clave, host)
 	}
+	return s
 }
 
 func (s *smtpEmailService) EnviarRecuperacion(destinatario, token string) error {
 	addr := fmt.Sprintf("%s:%s", s.host, s.port)
-	from := "noreply@biess.gob.ec"
+	from := s.from
 	subject := "Recuperación de credenciales - SRPD BIESS"
 
 	link := fmt.Sprintf("%s/restablecer?token=%s", s.appURL, token)
@@ -50,7 +52,7 @@ func (s *smtpEmailService) EnviarRecuperacion(destinatario, token string) error 
 		subject, from, destinatario, link,
 	)
 
-	err := smtp.SendMail(addr, nil, from, []string{destinatario}, []byte(body))
+	err := smtp.SendMail(addr, s.auth, from, []string{destinatario}, []byte(body))
 	if err != nil {
 		log.Printf("[EMAIL WARN] No se pudo enviar correo de recuperación: %v", err)
 		return err
@@ -62,7 +64,7 @@ func (s *smtpEmailService) EnviarRecuperacion(destinatario, token string) error 
 
 func (s *smtpEmailService) EnviarConfirmacionPostulacion(destinatario, codigo string, postulacion *model.PostulacionCompleta, perfil *model.PostulantePerfil) error {
 	addr := fmt.Sprintf("%s:%s", s.host, s.port)
-	from := "noreply@biess.gob.ec"
+	from := s.from
 	subject := fmt.Sprintf("Confirmación de Envío de Postulación - %s", codigo)
 
 	contenidoHTML := renderFormularioHTML(codigo, postulacion, perfil)
@@ -81,7 +83,7 @@ func (s *smtpEmailService) EnviarConfirmacionPostulacion(destinatario, codigo st
 		subject, from, destinatario, contenidoHTML,
 	)
 
-	err := smtp.SendMail(addr, nil, from, []string{destinatario}, []byte(body))
+	err := smtp.SendMail(addr, s.auth, from, []string{destinatario}, []byte(body))
 	if err != nil {
 		log.Printf("[EMAIL WARN] No se pudo enviar confirmacion de postulacion: %v", err)
 		return err

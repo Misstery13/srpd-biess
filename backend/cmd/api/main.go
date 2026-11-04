@@ -124,7 +124,7 @@ func registerAppRoutes(router *gin.Engine, cfg *config.Config, pgPool *pgxpool.P
 	postRepo := repository.NewPostulanteRepository(pgPool)
 	permisoRepo := repository.NewPermisoRepository(pgPool)
 	authCache := cache.NewAuthCache(rdb, cfg.JWTSecret)
-	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL)
+	emailSvc := service.NewEmailService(cfg.SMTPHost, cfg.SMTPPort, cfg.AppURL, cfg.SMTPUser, cfg.SMTPPassword, cfg.SMTPFrom)
 	authSvc := service.NewAuthService(service.AuthConfig{
 		RCRepo:    rcRepo,
 		PostRepo:  postRepo,
