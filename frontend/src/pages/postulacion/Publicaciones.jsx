@@ -55,7 +55,7 @@ const resumenPublicaciones = (p) => (
 
 export default function Publicaciones({ postulacion, guardar, soloLectura }) {
   const guardadas = postulacion?.publicaciones ?? []
-  const [tiene, setTiene] = useState(guardadas.length ? true : null)
+  const [tiene, setTiene] = useState(postulacion?.tiene_publicaciones ?? (guardadas.length ? true : null))
   const [lista, setLista] = useState(() => guardadas.map(desdeApi))
   const [error, setError] = useState('')
 
@@ -65,7 +65,7 @@ export default function Publicaciones({ postulacion, guardar, soloLectura }) {
     else if (tiene && lista.length === 0) msg = 'Agregue al menos una publicación o responda "No".'
     setError(msg)
     if (msg) return { tiene: msg }
-    await guardar({ publicaciones: tiene ? lista.map(aApi) : [] })
+    await guardar({ tiene_publicaciones: tiene, publicaciones: tiene ? lista.map(aApi) : [] })
   }
 
   return (

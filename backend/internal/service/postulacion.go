@@ -304,6 +304,14 @@ func (s *postulacionService) GuardarPostulacion(ctx context.Context, postulanteI
 		return "", err
 	}
 
+	// Respuesta "No" (1.3.1 y 1.7) incompatible con ítems en la lista
+	if p.TieneFamiliares != nil && !*p.TieneFamiliares && len(p.Familiares) > 0 {
+		return "", NewErrValidacion("Respondió que no tiene familiares en el IESS o BIESS, pero la lista no está vacía.")
+	}
+	if p.TienePublicaciones != nil && !*p.TienePublicaciones && len(p.Publicaciones) > 0 {
+		return "", NewErrValidacion("Respondió que no cuenta con publicaciones, pero la lista no está vacía.")
+	}
+
 	// 5: Validar listas fijas de familiares (1.3.1.2 y 1.3.1.3)
 	for _, f := range p.Familiares {
 		parentescoNorm := strings.ToLower(strings.TrimSpace(f.Parentesco))

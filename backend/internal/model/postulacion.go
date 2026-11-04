@@ -11,6 +11,8 @@ type PostulacionHeader struct {
 	RespaldoOrg         *bool      `json:"respaldo_org"`
 	OrgNombre           *string    `json:"org_nombre"`
 	OrgDocumento        *string    `json:"org_documento"`
+	TieneFamiliares     *bool      `json:"tiene_familiares"`    // 1.3.1 Sí/No; nil = sin responder
+	TienePublicaciones  *bool      `json:"tiene_publicaciones"` // 1.7 Sí/No; nil = sin responder
 	Estado              string     `json:"estado"`
 	AceptaTerminos      bool       `json:"acepta_terminos"`
 	FechaConsentimiento *time.Time `json:"fecha_consentimiento"`

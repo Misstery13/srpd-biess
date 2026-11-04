@@ -88,6 +88,7 @@ ok((await texto('[data-personal]'))?.includes('MARÍA ELENA TORRES'), '1.1.7.1 c
 ok(!(await existe('[data-personal] input')), '1.1 información personal en solo lectura (P6)')
 await boton('[data-seccion=personal]', 'Guardar', 600)
 ok((await texto('[data-seccion=personal] output')) === 'Información guardada.' && (await texto('[data-codigo]')) === 'BIESS-2026-000001', '1.1.8 "Guardar" crea el borrador con su código único')
+ok(!(await js(`document.querySelector('[data-seccion=domicilio]').hidden`)), '#33 tras "Guardar" pasa a Domicilio y contacto')
 
 // Domicilio
 const D = '[data-seccion=domicilio]'
@@ -214,6 +215,7 @@ await pestana('Publicaciones')
 await siNo('tiene-publicaciones', false)
 await boton('[data-seccion=publicaciones]', 'Guardar información', 600)
 ok((await texto('[data-seccion=publicaciones] output')) === 'Información guardada.', '1.7 publicaciones (No) guardado')
+ok(await js(`['Información adicional', 'Publicaciones'].every(t => [...document.querySelectorAll('nav button')].some(b => b.textContent.trim() === '✓ ' + t))`), '#33 respuesta "No" marca la sección como completa')
 await pestana('Capacitación')
 await boton('[data-seccion=capacitacion]', '+ Agregar')
 await escribir('#cap-horas', '0')
@@ -261,6 +263,10 @@ ok((await texto(`${V} output`))?.includes('BIESS-2026-000001 fue enviada'), '1.1
 ok(await js(`document.querySelector('[data-seccion=domicilio] fieldset').disabled`), 'P3 enviada: formulario en solo lectura')
 ok(await existe(String.raw`article.print\:block`), '1.10.2 formulario imprimible con firma, nombres y cédula')
 ok((await texto('article'))?.includes('Firma del postulante') && (await texto('article'))?.includes('C.I. 1710034065'), '1.10.2 firma, nombres y cédula en el impreso')
+ok(await js(`document.querySelector('header').classList.contains('print:hidden')`), '#33 el impreso no incluye encabezado ni "Cerrar sesión"')
+// El mock guarda en memoria: recargar solo tiene sentido contra el backend real
+if (real) await ir(url('/postulacion'), 1500)
+ok(await js(`document.querySelectorAll('input[name="tiene-familiares"]')[1].checked && document.querySelectorAll('input[name="tiene-publicaciones"]')[1].checked`), '#33 las respuestas "No" se conservan al recargar')
 
 // Eliminar cuenta (L5)
 await boton('main', 'Eliminar mi cuenta')

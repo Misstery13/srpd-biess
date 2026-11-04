@@ -47,7 +47,7 @@ const resumenFamiliares = (f) => (
 
 export default function Familiares({ postulacion, guardar, soloLectura }) {
   const guardados = postulacion?.familiares ?? []
-  const [tiene, setTiene] = useState(guardados.length ? true : null)
+  const [tiene, setTiene] = useState(postulacion?.tiene_familiares ?? (guardados.length ? true : null))
   const [lista, setLista] = useState(guardados)
   const [error, setError] = useState('')
 
@@ -57,7 +57,7 @@ export default function Familiares({ postulacion, guardar, soloLectura }) {
     else if (tiene && lista.length === 0) msg = 'Agregue al menos un familiar o responda "No".'
     setError(msg)
     if (msg) return { tiene: msg }
-    await guardar({ familiares: tiene ? lista.map(limpio) : [] })
+    await guardar({ tiene_familiares: tiene, familiares: tiene ? lista.map(limpio) : [] })
   }
 
   return (

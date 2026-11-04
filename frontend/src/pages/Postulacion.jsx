@@ -20,11 +20,11 @@ import Publicaciones from './postulacion/Publicaciones.jsx'
 const SECCIONES = [
   { id: 'personal', titulo: 'Información personal', Componente: InfoPersonal, listo: () => true },
   { id: 'domicilio', titulo: 'Domicilio y contacto', Componente: Domicilio, listo: (p) => !!p?.domicilio },
-  { id: 'adicional', titulo: 'Información adicional', Componente: Familiares, listo: (p) => p?.familiares?.length > 0 },
+  { id: 'adicional', titulo: 'Información adicional', Componente: Familiares, listo: (p) => p?.tiene_familiares != null || p?.familiares?.length > 0 },
   { id: 'cargo', titulo: 'Cargo', Componente: Cargo, listo: (p) => !!p?.cargo },
   { id: 'formacion', titulo: 'Formación académica', Componente: Formacion, listo: (p) => p?.formacion?.length > 0 },
   { id: 'experiencia', titulo: 'Experiencia', Componente: Experiencia, listo: (p) => p?.experiencia?.length > 0 },
-  { id: 'publicaciones', titulo: 'Publicaciones', Componente: Publicaciones, listo: (p) => p?.publicaciones?.length > 0 },
+  { id: 'publicaciones', titulo: 'Publicaciones', Componente: Publicaciones, listo: (p) => p?.tiene_publicaciones != null || p?.publicaciones?.length > 0 },
   { id: 'capacitacion', titulo: 'Capacitación', Componente: Capacitaciones, listo: (p) => p?.capacitaciones?.length > 0 },
   { id: 'inhabilidades', titulo: 'Inhabilidades', Componente: Inhabilidades, listo: (p) => !!p?.inhabilidades },
   { id: 'envio', titulo: 'Guardar y enviar', Componente: null, listo: (p) => p?.estado === 'ENVIADA' },
@@ -100,7 +100,7 @@ export default function Postulacion() {
   const { perfil, periodo } = carga
   const enviada = postulacion?.estado === 'ENVIADA'
   const soloLectura = !periodo.abierto || enviada
-  const props = { postulacion, perfil, guardar, soloLectura, onCierre }
+  const props = { postulacion, perfil, guardar, soloLectura, onCierre, irA: setActiva }
 
   return (
     <>
