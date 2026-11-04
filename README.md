@@ -10,7 +10,7 @@ Alcance: **EF-11** (registro y autenticación) y **EF-12** (formulario de postul
 ## Enlaces del proyecto
 
 - **Repositorio de Git:** [https://github.com/Misstery13/srpd-biess](https://github.com/Misstery13/srpd-biess)
-- **Despliegue en producción:** [https://www.postulacionesbiess.dev](https://www.postulacionesbiess.dev) (VPS EC2 AWS: `35.169.158.108`)
+- **Despliegue en producción:** [https://postulacionesbiess.dev](https://postulacionesbiess.dev) (VPS EC2 de AWS)
 
 ## Arquitectura
 

@@ -28,10 +28,10 @@ if ! grep -q '^APP_URL=' .env; then
   token=$(curl -fsS -m 2 -X PUT "$imds/api/token" -H 'X-aws-ec2-metadata-token-ttl-seconds: 60' || true)
   ip=$(curl -fsS -m 2 -H "X-aws-ec2-metadata-token: $token" "$imds/meta-data/public-ipv4" || true)
   if [ -n "$ip" ]; then
-    echo "APP_URL=http://$ip" >> .env
+    echo "APP_URL=http://$ip" >> .env  # NOSONAR: sin dominio no hay certificado; con dominio poner APP_URL=https://... a mano
     echo "APP_URL agregado al .env"
   else
-    echo "AVISO: no se pudo leer la IP pública; agregue APP_URL=http://<ip-o-dominio> al .env a mano" >&2
+    echo "AVISO: no se pudo leer la IP pública; agregue APP_URL=http://<ip-o-dominio> al .env a mano" >&2  # NOSONAR: solo es un mensaje de ayuda
   fi
 fi
 
