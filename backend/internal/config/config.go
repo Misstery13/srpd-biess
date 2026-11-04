@@ -14,6 +14,9 @@ type Config struct {
 	JWTSecret        string
 	SMTPHost         string
 	SMTPPort         string
+	SMTPUser         string // vacío: sin autenticación (Mailpit)
+	SMTPPassword     string
+	SMTPFrom         string
 	PostgresHost     string
 	PostgresPort     string
 	PostgresDB       string
@@ -47,6 +50,9 @@ func Load() (*Config, error) {
 		JWTSecret:        jwtSecret,
 		SMTPHost:         getEnv("SMTP_HOST", "localhost"),
 		SMTPPort:         getEnv("SMTP_PORT", "1025"),
+		SMTPUser:         os.Getenv("SMTP_USER"),
+		SMTPPassword:     os.Getenv("SMTP_PASSWORD"),
+		SMTPFrom:         getEnv("SMTP_FROM", "noreply@biess.gob.ec"),
 		PostgresHost:     getEnv("POSTGRES_HOST", "localhost"),
 		PostgresPort:     getEnv("POSTGRES_PORT", "5432"),
 		PostgresDB:       getEnv("POSTGRES_DB", "srpd_biess"),

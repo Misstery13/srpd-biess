@@ -107,7 +107,9 @@ El archivo `.env.example` contiene las variables requeridas para desplegar el st
 | `APP_URL` | `http://localhost:5173` | URL pública de la aplicación (usada en enlaces de recuperación de contraseña) |
 | `JWT_SECRET` | *(requerido)* | Clave secreta (≥ 32 caracteres) para firmar tokens JWT (`openssl rand -hex 32`) |
 | `SMTP_HOST` | `localhost` / `mailpit` | Host del servidor SMTP para notificaciones y recuperación de clave |
-| `SMTP_PORT` | `1025` | Puerto SMTP (Mailpit en desarrollo) |
+| `SMTP_PORT` | `1025` | Puerto SMTP (Mailpit en desarrollo; 587 para un servidor real con STARTTLS) |
+| `SMTP_USER` / `SMTP_PASSWORD` | *(vacío)* | Credenciales del servidor SMTP real; vacío = sin autenticación (Mailpit) |
+| `SMTP_FROM` | `noreply@biess.gob.ec` | Remitente; con un servidor real debe ser una dirección autorizada por ese servidor |
 | `POSTGRES_HOST` | `localhost` / `postgres` | Host del motor PostgreSQL |
 | `POSTGRES_PORT` | `5432` | Puerto de conexión a PostgreSQL |
 | `POSTGRES_DB` | `srpd_biess` | Nombre de la base de datos |
