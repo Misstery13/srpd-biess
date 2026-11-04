@@ -221,6 +221,8 @@ await boton('[data-seccion=capacitacion]', '+ Agregar')
 await escribir('#cap-horas', '0')
 await boton('[data-seccion=capacitacion]', 'Agregar a la lista')
 ok((await cuenta('[data-seccion=capacitacion] [data-edicion] [role=alert]')) === 6, '1.8 capacitación: 6 obligatorios y horas > 0')
+await boton('[data-seccion=capacitacion]', 'Guardar información', 600)
+ok((await texto('[data-seccion=capacitacion]'))?.includes('Tiene un registro abierto') && (await texto('[data-seccion=capacitacion] output')) !== 'Información guardada.', 'no guarda la sección con un registro abierto (campos vacíos)')
 await boton('[data-seccion=capacitacion]', 'Cancelar')
 
 // Envío bloqueado sin inhabilidades
