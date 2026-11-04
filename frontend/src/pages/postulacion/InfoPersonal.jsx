@@ -26,6 +26,7 @@ export default function InfoPersonal({ postulacion, perfil, guardar, soloLectura
       }}
       soloLectura={soloLectura}
       textoBoton="Guardar"
+      mensajeOk={null}
     >
       <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2" data-personal>
         {datos.map(([etiqueta, valor]) => (
@@ -35,7 +36,9 @@ export default function InfoPersonal({ postulacion, perfil, guardar, soloLectura
           </div>
         ))}
       </dl>
-      {!postulacion?.codigo && <p className="text-sm text-slate-600">Al guardar se genera su código de postulación y puede continuar con el formulario.</p>}
+      <p className="text-sm text-slate-600" data-codigo-info>
+        {postulacion?.codigo ? `Código de postulación generado: ${postulacion.codigo}.` : 'Al guardar se genera su código de postulación y puede continuar con el formulario.'}
+      </p>
     </Seccion>
   )
 }

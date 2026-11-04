@@ -87,7 +87,7 @@ ok((await texto('[data-personal]'))?.includes('JUAN CARLOS'), '1.1 datos del Reg
 ok((await texto('[data-personal]'))?.includes('MARÍA ELENA TORRES'), '1.1.7.1 casado: se muestran los datos de la pareja')
 ok(!(await existe('[data-personal] input')), '1.1 información personal en solo lectura (P6)')
 await boton('[data-seccion=personal]', 'Guardar', 600)
-ok((await texto('[data-seccion=personal] output')) === 'Información guardada.' && (await texto('[data-codigo]')) === 'BIESS-2026-000001', '1.1.8 "Guardar" crea el borrador con su código único')
+ok((await texto('[data-codigo-info]'))?.includes('BIESS-2026-000001') && !(await existe('[data-seccion=personal] output')) && (await texto('[data-codigo]')) === 'BIESS-2026-000001', '1.1.8 "Guardar" crea el borrador con su código único')
 ok(!(await js(`document.querySelector('[data-seccion=domicilio]').hidden`)), '#33 tras "Guardar" pasa a Domicilio y contacto')
 
 // Domicilio
@@ -154,7 +154,9 @@ ok((await texto(`${F} output`)) === 'Información guardada.', '1.3.1.7 Guardar i
 // Cargo
 const C = '[data-seccion=cargo]'
 await pestana('Cargo')
-await clic('input[name=cargo][value=AFILIADOS]', 600)
+await clic('input[name=cargo][value=AFILIADOS]', 300)
+ok((await existe(`${C} [data-confirmar-cargo]`)) && !(await texto(`${C} output`)), '1.4 elegir cargo pide confirmación antes de validar con el IESS')
+await boton(C, 'Sí, verificar', 600)
 ok((await texto(`${C} output`)) === 'Postulante afiliado al IESS', '1.4.1.1 afiliado: "Postulante afiliado al IESS"')
 ok((await texto(`${C} fieldset legend`)) !== null && (await js(`document.querySelector('${C}').textContent.includes('organización de trabajadores')`)), '1.4.1.3 pregunta de respaldo de organización de trabajadores')
 await siNo('respaldo', true)
@@ -171,6 +173,8 @@ ok((await texto(`${C} output:last-of-type`)) === 'Información guardada.' || (aw
 // Formación
 const FO = '[data-seccion=formacion]'
 await pestana('Formación académica')
+await boton('[data-seccion=formacion]', 'Guardar información', 400)
+ok((await texto('[data-seccion=formacion]'))?.includes('No ha registrado títulos. Use "+ Agregar"') && !(await existe('[data-seccion=formacion] output')), 'lista vacía: no dice "Información guardada" sin nada que guardar')
 await boton(FO, '+ Agregar')
 ok((await js(`[...document.querySelector('#for-nivel').options].map(o => o.text).slice(1).join('|')`)) === 'Tercer Nivel de Grado|Cuarto Nivel - Especialidad Académica|Cuarto Nivel - Maestría Académica|Cuarto Nivel PhD - Doctorado', '1.5.1 niveles del documento')
 await elegir('#for-nivel', 'Cuarto Nivel - Maestría Académica')
@@ -228,7 +232,13 @@ await boton('[data-seccion=capacitacion]', 'Cancelar')
 // Envío bloqueado sin inhabilidades
 const V = '[data-seccion=envio]'
 await pestana('Guardar y enviar')
-ok((await texto(`${V} [data-pendientes]`))?.includes('Inhabilidades'), 'envío: avisa que faltan las inhabilidades')
+ok(!(await existe(`${V} [data-consentimiento]`)), '1.10.1 consentimiento aparece solo al pulsar "Guardar Postulación"')
+ok((await js(`[...document.querySelectorAll('${V} button')].find(b => b.textContent.trim() === 'Imprimir formulario').disabled`)) && (await texto(V))?.includes('Disponible después de enviar la postulación') && !(await existe('article')), 'imprimir solo después de enviar (botón y Ctrl+P)')
+await boton(V, 'Guardar Postulación', 600)
+ok((await cuenta(`${V} [data-consentimiento] input[type=checkbox]`)) === 5, '1.10.1 los 5 textos de consentimiento')
+ok((await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].every(c => !c.checked)`)), 'L1 casillas sin marcar por defecto')
+await clic(`${V} [data-enviar]`, 300)
+ok((await texto(`${V} [data-aviso]`)) === 'Falta guardar: Inhabilidades.', 'envío: al pulsar "Enviar" dice en una línea qué falta guardar')
 
 // Inhabilidades
 const I = '[data-seccion=inhabilidades]'
@@ -249,21 +259,18 @@ ok((await texto(`${I} output`)) === 'Información guardada.', '1.9 inhabilidades
 
 // Guardar y enviar con consentimiento
 await pestana('Guardar y enviar')
-ok(!(await existe(`${V} [data-pendientes]`)), 'envío: sin secciones pendientes')
-ok(!(await existe(`${V} [data-consentimiento]`)), '1.10.1 consentimiento aparece solo al pulsar "Guardar Postulación"')
-await boton(V, 'Guardar Postulación', 600)
-ok((await cuenta(`${V} [data-consentimiento] input[type=checkbox]`)) === 5, '1.10.1 los 5 textos de consentimiento')
-ok((await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].every(c => !c.checked)`)), 'L1 casillas sin marcar por defecto')
-ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 "Enviar Postulación" deshabilitado sin aceptar')
+await clic(`${V} [data-enviar]`, 300)
+ok((await texto(`${V} [data-aviso]`)) === 'Marque las 5 declaraciones (faltan 5).', 'L1 no envía sin aceptar las declaraciones')
 await js(`[...document.querySelectorAll('${V} [data-consentimiento] input')].slice(0, 4).forEach(c => c.click())`)
-ok(await js(`document.querySelector('${V} [data-enviar]').disabled`), 'L1 sigue deshabilitado con 4 de 5')
+await clic(`${V} [data-enviar]`, 300)
+ok((await texto(`${V} [data-aviso]`)) === 'Marque las 5 declaraciones (falta 1).' && !(await texto(`${V} output`))?.includes('fue enviada'), 'L1 no envía con 4 de 5')
 await js(`document.querySelectorAll('${V} [data-consentimiento] input')[4].click()`)
 await esperar(100)
 // El envío espera al correo de confirmación (SMTP síncrono): en modo desarrollo tarda ~1 s
 await clic(`${V} [data-enviar]`, 2500)
 ok((await texto(`${V} output`))?.includes('BIESS-2026-000001 fue enviada'), '1.10.3 postulación enviada')
 ok(await js(`document.querySelector('[data-seccion=domicilio] fieldset').disabled`), 'P3 enviada: formulario en solo lectura')
-ok(await existe(String.raw`article.print\:block`), '1.10.2 formulario imprimible con firma, nombres y cédula')
+ok(await existe(String.raw`article.print\:block`) && !(await js(`[...document.querySelectorAll('${V} button')].find(b => b.textContent.trim() === 'Imprimir formulario').disabled`)), '1.10.2 enviada: formulario imprimible con firma, nombres y cédula')
 ok((await texto('article'))?.includes('Firma del postulante') && (await texto('article'))?.includes('C.I. 1710034065'), '1.10.2 firma, nombres y cédula en el impreso')
 ok(await js(`document.querySelector('header').classList.contains('print:hidden')`), '#33 el impreso no incluye encabezado ni "Cerrar sesión"')
 // El mock guarda en memoria: recargar solo tiene sentido contra el backend real
@@ -285,7 +292,11 @@ ok((await existe('[data-cierre]')) && (await texto('[data-cierre]'))?.includes('
 // ===== C. Jubilada no afiliada (0912345675) elige Afiliados =====
 await sesion('0912345675')
 await pestana('Cargo')
-await clic('input[name=cargo][value=AFILIADOS]', 700)
+await clic('input[name=cargo][value=AFILIADOS]', 300)
+await boton('[data-seccion=cargo]', 'Cancelar', 300)
+ok(!(await existe('[data-cierre]')) && !(await js(`document.querySelector('input[name=cargo][value=AFILIADOS]').checked`)), '1.4 "Cancelar" no valida ni cierra')
+await clic('input[name=cargo][value=AFILIADOS]', 300)
+await boton('[data-seccion=cargo]', 'Sí, verificar', 700)
 ok(
   (await texto('[data-cierre]'))?.includes('Postulante No Afiliado al IESS') &&
     (await texto('[data-cierre]'))?.includes('NO puede continuar, por cuanto no mantiene la calidad de afiliado al IESS'),

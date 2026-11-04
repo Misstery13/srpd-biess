@@ -158,7 +158,11 @@ export default function Postulacion() {
           </div>
         </div>
       </div>
-      <Impresion perfil={perfil} postulacion={postulacion} />
+      {enviada ? (
+        <Impresion perfil={perfil} postulacion={postulacion} />
+      ) : (
+        <p className="hidden print:block">El formulario se imprime después de enviar la postulación.</p>
+      )}
     </>
   )
 }

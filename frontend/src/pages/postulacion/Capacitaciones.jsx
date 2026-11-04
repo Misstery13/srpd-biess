@@ -66,7 +66,11 @@ const resumenCapacitaciones = (c) => (
 
 export default function Capacitaciones({ postulacion, guardar, soloLectura }) {
   const [lista, setLista] = useState(() => (postulacion?.capacitaciones ?? []).map(desdeApi))
-  const onGuardar = () => guardar({ capacitaciones: lista.map(aApi) })
+  // Sin registros ahora ni guardados antes no hay nada que guardar (vaciar una lista guardada sí es un cambio)
+  const onGuardar = () =>
+    lista.length === 0 && !postulacion?.capacitaciones?.length
+      ? { _seccion: 'No ha registrado capacitaciones. Use "+ Agregar" para registrar.' }
+      : guardar({ capacitaciones: lista.map(aApi) })
 
   return (
     <Seccion titulo="Capacitación" onGuardar={onGuardar} soloLectura={soloLectura} textoBoton="Guardar información">

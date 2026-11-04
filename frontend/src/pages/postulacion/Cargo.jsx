@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import CampoPDF from '../../components/CampoPDF.jsx'
-import { Alerta, Campo, SiNo } from '../../components/Formulario.jsx'
+import { Alerta, BotonLinea, Campo, SiNo } from '../../components/Formulario.jsx'
 import { validarCargo } from '../../services/postulacion.js'
 import { CARGOS, cargoPorCodigo, LIMITE_ORGANIZACION } from '../../utils/ef12.js'
 import { revisarTexto } from '../../utils/validaciones.js'
@@ -15,6 +15,8 @@ export default function Cargo({ postulacion, guardar, soloLectura, onCierre }) {
   const [orgNombre, setOrgNombre] = useState(postulacion?.org_nombre ?? '')
   const [orgDocumento, setOrgDocumento] = useState(postulacion?.org_documento ?? null)
   const [errores, setErrores] = useState({})
+  // Elegir un cargo pide confirmación antes de validarlo: si no cumple el requisito, la postulación se cierra (1.4.x.2)
+  const [porConfirmar, setPorConfirmar] = useState(null)
 
   // Valida el cargo elegido (y el guardado, al abrir la sección)
   useEffect(() => {
@@ -39,7 +41,8 @@ export default function Cargo({ postulacion, guardar, soloLectura, onCierre }) {
 
   async function onGuardar() {
     const e = {}
-    if (!cargo) e.cargo = 'Seleccione el cargo al que postula.'
+    if (porConfirmar) e.cargo = 'Confirme o cancele el cargo elegido.'
+    else if (!cargo) e.cargo = 'Seleccione el cargo al que postula.'
     else if (!habilitado) e.cargo = 'Espere la validación del cargo.'
     if (habilitado && respaldo === null) e.respaldo = 'Responda si cuenta con el respaldo de una organización.'
     if (respaldo) {
@@ -60,7 +63,7 @@ export default function Cargo({ postulacion, guardar, soloLectura, onCierre }) {
         <div className="flex flex-col gap-2">
           {CARGOS.map((c) => (
             <label key={c.codigo} className="flex items-start gap-2 rounded-md border border-slate-200 p-3 text-sm has-checked:border-marca-600 has-checked:bg-marca-50">
-              <input type="radio" name="cargo" value={c.codigo} checked={cargo === c.codigo} onChange={() => setCargo(c.codigo)} className="mt-1" />
+              <input type="radio" name="cargo" value={c.codigo} checked={(porConfirmar ?? cargo) === c.codigo} onChange={() => setPorConfirmar(c.codigo === cargo ? null : c.codigo)} className="mt-1" />
               {c.nombre}
             </label>
           ))}
@@ -72,6 +75,24 @@ export default function Cargo({ postulacion, guardar, soloLectura, onCierre }) {
         )}
       </fieldset>
 
+      {porConfirmar && (
+        <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900" data-confirmar-cargo>
+          <p>Se verificará con el Historial Laboral del IESS que cumple el requisito de este cargo. Si no lo cumple, la postulación se cerrará. ¿Desea continuar?</p>
+          <div className="mt-2 flex gap-2">
+            <BotonLinea
+              onClick={() => {
+                setCargo(porConfirmar)
+                setPorConfirmar(null)
+              }}
+            >
+              Sí, verificar
+            </BotonLinea>
+            <BotonLinea peligro onClick={() => setPorConfirmar(null)}>
+              Cancelar
+            </BotonLinea>
+          </div>
+        </div>
+      )}
       {validando && <p className="text-sm text-slate-500">Validando con el Historial Laboral del IESS…</p>}
       <Alerta>{validacion.cargo === cargo && validacion.error}</Alerta>
       {habilitado && (

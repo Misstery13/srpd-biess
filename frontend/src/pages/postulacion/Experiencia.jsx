@@ -96,7 +96,11 @@ const resumenExperiencia = (f) => (
 
 export default function Experiencia({ postulacion, guardar, soloLectura }) {
   const [lista, setLista] = useState(() => (postulacion?.experiencia ?? []).map(desdeApi))
-  const onGuardar = () => guardar({ experiencia: lista.map(aApi) })
+  // Sin registros ahora ni guardados antes no hay nada que guardar (vaciar una lista guardada sí es un cambio)
+  const onGuardar = () =>
+    lista.length === 0 && !postulacion?.experiencia?.length
+      ? { _seccion: 'No ha registrado experiencias. Use "+ Agregar" para registrar.' }
+      : guardar({ experiencia: lista.map(aApi) })
   const total = lista.length ? sumarDuraciones(lista.map(duracion)) : null
 
   return (
